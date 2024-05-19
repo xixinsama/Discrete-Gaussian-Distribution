@@ -8,10 +8,11 @@ int main() {
 	sampler_context sc;
 
 	sampler_shake256_init(&rng);
-	sampler_shake256_inject(&rng, (const void*)"LNGyunnandaxuemimaxzhandui", 26);
+	sampler_shake256_inject(&rng, (const void*)"test sampler", 12);
 	sampler_shake256_flip(&rng);
 	Zf(prng_init)(&sc.p, &rng);
-	sc.sigma_min = 0;
+
+	srand(11451419); // 设置随机数种子1145 114514 11451419
 	sc.center = (double)rand() / RAND_MAX;
 	sc.sigma = ((double)rand() / RAND_MAX) * 0.8 + 0.8;
 	
@@ -20,7 +21,7 @@ int main() {
 
 	int choice;
 	printf("1. CDT反演法c=0, sigma=0.75 \n2. Knuth_Yao法c = 0, sigma = 4 \n3. 查表法c = 0, sigma = 0.75 \n4. 拒绝采样法c = 0, sigma = 0.75 \n5. 高斯卷积法c = 0, sigma = 1024 \n6. 伯努利拒绝采样法c = [0,1), sigma = 1.5 \n7. 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6) \n输入序号：\n  ");
-	int a = scanf("%d", &choice);
+	scanf_s("%d", &choice);
 
 	// 根据用户的选择，设置函数指针
 	if (choice == 1) {
@@ -39,11 +40,13 @@ int main() {
 		func_ptr = sampler_2;
 	}
 	else if (choice == 6) {
+		sc.sigma_min = 1.5; // 伯努利拒绝采样法c = [0,1), sigma = 1.5
 		func_ptr = sampler_3;
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
 	}
 	else if (choice == 7) {
+		sc.sigma_min = 0.8; // 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6)
 		func_ptr = sampler_4;
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
