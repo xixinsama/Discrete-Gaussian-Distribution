@@ -108,17 +108,15 @@ static const uint32_t DistForBSampler_4_CDT[] = {
 268435455u,
 };
 
-// 将要被优化
-static const double DistForSampler_1_LUT[] = {
-0.53189951642238419982078312386875,
-0.96925354831353160989237949252129,
-0.99964241585553574240274876672174,
-0.9999992914251786749863480652234,
-0.99999999976236583087658324985308,
-0.9999999999999864851209714664378,
-0.99999999999999995765388114959329,
-0.99999999999999995778298382432886,
-1
+// 64bits sigma = 0.75
+static const uint64_t DistForSampler_1_LUT_64[] = {
+0x882b0eea011c0800u,
+0xf82108677a9c6000u,
+0xffe890d4670d3800u,
+0xfffff41cbe3a7800u,
+0xfffffffefab90800u,
+0xfffffffffffc3800u,
+0xffffffffffffffffu
 };
 
 static const double DistForSampler_1_Reject[] = {
@@ -138,8 +136,7 @@ int sampler_1_CDT(void* ctx) {
 	sampler_context* spc;
 	spc = ctx;
 	int z = 0;
-	uint32_t r = prng_get_u32(&spc->p) >> 4; // 32bit
-	int temp = 0;
+	uint32_t r = prng_get_u32(&spc->p) >> 4;
 
 	while ((DistForSampler_1_CDT[z] - r) >> 31) //未设置边界，在dist中需要保证最后一个数为max
 	{
@@ -190,25 +187,21 @@ int sampler_1_LUT(void* ctx)
 {
 	sampler_context* spc;
 	spc = ctx;
-
-	int t, s;
 	int z = 0;
-	double u;
-
-	t = prng_get_u8(&spc->p) & 7;
-	u = prng_get_rand(&spc->p);
-	s = prng_get_u8(&spc->p) & 1;
-	int length = sizeof(DistForSampler_1_LUT) / sizeof(DistForSampler_1_LUT[0]);
+	uint64_t r = prng_get_u64(&spc->p);
+	
+	int length = sizeof(DistForSampler_1_LUT_64) / sizeof(DistForSampler_1_LUT_64[0]);
 
 	for (int i = 0; i <= length; i++)
 	{
-		if (u > DistForSampler_1_LUT[i] && u < DistForSampler_1_LUT[i + 1])
+		if (r < DistForSampler_1_LUT_64[i])
 		{
-			t = i;
+			z = i;
 		}
 	}
 
-	return z = (s == 0) ? -t : t;
+	int s = prng_get_u8(&spc->p) & 1;
+	return z = (s == 0) ? -z : z;
 }
 
 
@@ -227,7 +220,7 @@ int sampler_1_Reject(void* ctx)
 		if (u < DistForSampler_1_Reject[t])
 		{
 			int s = prng_get_u8(&spc->p) & 1;
-			z = (s == 0) ? -t : t;
+			return z = (s == 0) ? -t : t;
 			break;
 		}
 		else
@@ -274,22 +267,20 @@ int sampler_2(void* ctx) {
 }
 
 // 接受采样，返回0或1
-int AcceptSample(void* ctx, double sigma, double x)
+int AcceptSample(prng* pp, double sis, double x)
 {
-	sampler_context* spc;
-	spc = ctx;
-	uint64_t z;
-	double p = (double)(spc->sigma_min) / sigma * expm_p63(-x);;
-	int i = 0xFF;
+	double p = sis * expm_p63(-x);;
+	
+	int i = 1;
 	uint32_t u, v;
 
 	do {
-		i = 0xFF;
-		u = prng_get_u8(&spc->p);
-		v = (int)p * i; //强制类型转换，用于向下取整
+		i = i * 0xFF;
+		u = prng_get_u8(pp);
+		v = (int)(p * i) & 0xFF; //强制类型转换，用于向下取整
 	} while (u == v);
 
-	return (int)(u - v >> 31);
+	return (int)((u - v) >> 31);
 }
 
 // Fixed sigma = 1.5 and center c is uniformly distributed over [0,1)
@@ -323,13 +314,17 @@ int sampler_4(void* ctx) {
 	spc = ctx;
 	int z = 0;
 
+	double isigma_min = 1 / spc->sigma_min; // 1 / sigma_min
+	double isigma = 1 / spc->sigma; // 1 / sigma
+	double sis = spc->sigma_min * isigma; // sigma_min / sigma
+
 	while (1)
 	{
 		int z0 = BaseSampler4(&spc->p);
 		int b = prng_get_u8(&spc->p) & 1;
 		z = (2 * b - 1) * z0 + b;
-		double x = (z0 * z0) / (8 * (spc->sigma_min) * (spc->sigma_min)) - (z - spc->center) * (z - spc->center) / (2 * spc->sigma * spc->sigma);
-		if (AcceptSample(&spc, spc->sigma, x))
+		double x = (z0 * z0 * isigma_min * isigma_min) / 8 - (z - spc->center) * (z - spc->center) * isigma * isigma / 2;
+		if (AcceptSample(&spc->p, sis, x))
 		{
 			return z;
 			break;
