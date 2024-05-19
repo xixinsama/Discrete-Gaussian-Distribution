@@ -20,7 +20,7 @@ int main() {
 	int (*func_ptr)();
 
 	int choice;
-	printf("1. CDT反演法c=0, sigma=0.75 \n2. Knuth_Yao法c = 0, sigma = 4 \n3. 查表法c = 0, sigma = 0.75 \n4. 拒绝采样法c = 0, sigma = 0.75 \n5. 高斯卷积法c = 0, sigma = 1024 \n6. 伯努利拒绝采样法c = [0,1), sigma = 1.5 \n7. 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6) \n输入序号：\n  ");
+	printf("1. CDT反演法c=0, sigma=0.75 \n2. Knuth_Yao法c = 0, sigma = 4 \n3. 查表法c = 0, sigma = 0.75 \n4. 拒绝采样法c = 0, sigma = 0.75 \n5. 高斯卷积法c = 0, sigma = 1024 \n6. 伯努利拒绝采样法c = [0,1), sigma = 1.5 \n7. 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6) \n8. Karney算法 \n输入序号：\n  ");
 	scanf_s("%d", &choice);
 
 	// 根据用户的选择，设置函数指针
@@ -41,6 +41,7 @@ int main() {
 	}
 	else if (choice == 6) {
 		sc.sigma_min = 1.5; // 伯努利拒绝采样法c = [0,1), sigma = 1.5
+		sc.sigma = 1.5;
 		func_ptr = sampler_3;
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
@@ -48,6 +49,12 @@ int main() {
 	else if (choice == 7) {
 		sc.sigma_min = 0.8; // 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6)
 		func_ptr = sampler_4;
+		printf("center = %f\n", sc.center);
+		printf("sigma = %f\n", sc.sigma);
+	}
+	else if (choice == 8) {
+		sc.sigma_min = 0; // Karney算法
+		func_ptr = sampler_karney;
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
 	}
