@@ -24,6 +24,7 @@ int sampler_3(void* ctx);
 
 int sampler_4(void* ctx);
 
+int sampler_karney(void* ctx);
 
 /*
  * "Naming" macro used to apply a consistent prefix over all global
@@ -285,6 +286,47 @@ static inline double expm_p63(double x)
 	y = 0.999999999999994892974086724280 - y * x;
 	y = 1.000000000000000000000000000000 - y * x;
 	return y;
+}
+
+static inline uint64_t
+fpr_expm_p63(double x, double ccs)
+{
+	/*
+	 * Polynomial approximation of exp(-x) is taken from FACCT:
+	 *   https://eprint.iacr.org/2018/1234
+	 * Specifically, values are extracted from the implementation
+	 * referenced from the FACCT article, and available at:
+	 *   https://github.com/raykzhao/gaussian
+	 * Tests over more than 24 billions of random inputs in the
+	 * 0..log(2) range have never shown a deviation larger than
+	 * 2^(-50) from the true mathematical value.
+	 */
+
+
+	 /*
+	  * Normal implementation uses Horner's method, which minimizes
+	  * the number of operations.
+	  */
+
+	double d, y;
+
+	d = x;
+	y = 0.000000002073772366009083061987;
+	y = 0.000000025299506379442070029551 - y * d;
+	y = 0.000000275607356160477811864927 - y * d;
+	y = 0.000002755586350219122514855659 - y * d;
+	y = 0.000024801566833585381209939524 - y * d;
+	y = 0.000198412739277311890541063977 - y * d;
+	y = 0.001388888894063186997887560103 - y * d;
+	y = 0.008333333327800835146903501993 - y * d;
+	y = 0.041666666666110491190622155955 - y * d;
+	y = 0.166666666666984014666397229121 - y * d;
+	y = 0.500000000000019206858326015208 - y * d;
+	y = 0.999999999999994892974086724280 - y * d;
+	y = 1.000000000000000000000000000000 - y * d;
+	y *= ccs;
+	return (uint64_t)(y * 9223372036854775808.0);
+
 }
 
 /* ==================================================================== */
