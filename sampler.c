@@ -87,25 +87,31 @@ static const uint32_t DistForBaseSampler_CDT[] = {
 
 //c = 0, sigma = 1.5, z+, 28bits
 static const uint32_t DistForBSampler_3_CDT[] = {
-71393501u,
-185728396u,
-244429888u,
-263754008u,
-267832790u,
-268384793u,
-268432693u,
-268435358u,
-268435453u,
-268435455u,
+112789371u,
+203104039u,
+249473136u,
+264737517u,
+267959402u,
+268395437u,
+268433274u,
+268435379u,
+268435454u,
+268435455u
 };
 
-//c = 0, sigma = 0.8, z+, 28bits
+//c = 0, sigma = 1.6, z+, 30bits
 static const uint32_t DistForBSampler_4_CDT[] = {
-133861942u,
-256434869u,
-268197835u,
-268434457u,
-268435455u,
+428587674u,
+781134279u,
+977356015u,
+1051253798u,
+1070084626u,
+1073331468u,
+1073710265u,
+1073740167u,
+1073741764u,
+1073741822u,
+1073741823u,
 };
 
 // 28bits sigma = 0.75
@@ -275,13 +281,15 @@ static int AcceptSample(prng* pp, double sis, double x)
 	int i = 1;
 	uint32_t u, v;
 
-	do {
-		i = i * 0xFF;
-		u = prng_get_u8(pp);
-		v = (int)(p * i) & 0xFF; //强制类型转换，用于向下取整
-	} while (u == v);
+	//do {
+	//	i = i * 0xFF;
+	//	u = prng_get_u8(pp);
+	//	v = (int)(p * i) & 0xFF; //强制类型转换，用于向下取整
+	//} while (u == v);
 
-	return (int)((u - v) >> 31);
+	//return (int)((u - v) >> 31);
+	double r = prng_get_rand(pp);
+	return r < p;
 }
 
 static int BaseSampler3(prng* p)
@@ -425,7 +433,7 @@ int sampler_3(void* ctx) {
 static int BaseSampler4(prng* p)
 {
 	int z = 0;
-	uint32_t r = prng_get_u32(p) >> 4; // 32bit
+	uint32_t r = prng_get_u32(p) >> 2; // 30bit
 	int temp = 0;
 
 	while ((DistForBSampler_4_CDT[z] - r) >> 31)
@@ -442,7 +450,7 @@ int sampler_4(void* ctx) {
 	spc = ctx;
 	int z = 0;
 
-	double isigma_min = 1 / spc->sigma_min; // 1 / sigma_min
+	// double isigma_min = 1 / spc->sigma_min; // 1 / sigma_min
 	double isigma = 1 / spc->sigma; // 1 / sigma
 	double sis = spc->sigma_min * isigma; // sigma_min / sigma
 
@@ -451,7 +459,8 @@ int sampler_4(void* ctx) {
 		int z0 = BaseSampler4(&spc->p);
 		int b = prng_get_u8(&spc->p) & 1;
 		z = (2 * b - 1) * z0 + b;
-		double x = (z0 * z0 * isigma_min * isigma_min) * 0.125 - (z - spc->center) * (z - spc->center) * isigma * isigma * 0.5;
+		double x = z0 * z0 * 0.1953125;  //直接套用1/1.6^2*0.5
+		x = x - (z - spc->center) * (z - spc->center) * isigma * isigma * 0.5;
 		if (AcceptSample(&spc->p, sis, x))
 		{
 			return z;
