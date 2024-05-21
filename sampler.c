@@ -99,8 +99,8 @@ static const uint32_t DistForBSampler_3_CDT[] = {
 268435455u
 };
 
-//c = 0, sigma = 1.6, z+, 30bits
-static const uint32_t DistForBSampler_4_CDT[] = {
+//c = 0, sigma = 0.9--1.6, z+, 30bits
+static const uint32_t CDT4_16[] = {
 428587674u,
 781134279u,
 977356015u,
@@ -113,6 +113,77 @@ static const uint32_t DistForBSampler_4_CDT[] = {
 1073741822u,
 1073741823u,
 };
+static const uint32_t CDT4_15[] = {
+451157485u,
+812416158u,
+997892545u,
+1058950071u,
+1071837610u,
+1073581749u,
+1073733096u,
+1073741516u,
+1073741817u,
+1073741823u
+};
+static const uint32_t CDT4_14[] = {
+476236526u,
+845242412u,
+1016900815u,
+1064843023u,
+1072881840u,
+1073691099u,
+1073740010u,
+1073741784u,
+1073741823u
+};
+static const uint32_t CDT4_13[] = {
+504267880u,
+879389259u,
+1033809185u,
+1068985948u,
+1073420293u,
+1073729624u,
+1073741565u,
+1073741820u,
+1073741823u
+};
+static const uint32_t CDT4_12[] = {
+535805472u,
+914431486u,
+1048035764u,
+1071577413u,
+1073648795u,
+1073739805u,
+1073741802u,
+1073741823u
+};
+static const uint32_t CDT4_11[] = {
+571551042u,
+949640434u,
+1059089712u,
+1072954405u,
+1073722981u,
+1073741625u,
+1073741823u
+};
+static const uint32_t CDT4_10[] = {
+612406982u,
+983850593u,
+1066730865u,
+1073534092u,
+1073739532u,
+1073741814u,
+1073741823u
+};
+static const uint32_t CDT4_09[] = {
+659553470u,
+1015321563u,
+1071158033u,
+1073707814u,
+1073741692u,
+1073741823u,
+};
+
 
 // 28bits sigma = 0.75
 static const uint64_t DistForSampler_1_LUT[] = {
@@ -122,6 +193,21 @@ static const uint64_t DistForSampler_1_LUT[] = {
 268435264u,
 268435454u,
 268435455u
+};
+
+static const double sigma_minT[] = {
+0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5
+};
+
+static const double isigma_maxT[] = {
+0.617283950617284027373443677789,
+0.500000000000000000000000000000,
+0.413223140495867724553136213217,
+0.347222222222222154375259606240,
+0.295857988165680318992656339105,
+0.255102040816326369743194391049,
+0.222222222222222126619683990612,
+0.195312499999999861222121921855
 };
 
 static const double DistForSampler_1_Reject[] = {
@@ -211,7 +297,6 @@ int sampler_1_LUT(void* ctx)
 	return z = (s == 0) ? -z : z;
 }
 
-
 // Fixed sigma = 0.75 and center = 0
 int sampler_1_Reject(void* ctx)
 {
@@ -277,19 +362,18 @@ int sampler_2(void* ctx) {
 static int AcceptSample(prng* pp, double sis, double x)
 {
 	double p = sis * expm_p63(-x);;
-	
+
 	int i = 1;
-	uint32_t u, v;
+	uint16_t u, v;
 
-	//do {
-	//	i = i * 0xFF;
-	//	u = prng_get_u8(pp);
-	//	v = (int)(p * i) & 0xFF; //强制类型转换，用于向下取整
-	//} while (u == v);
+	//惰性浮点伯努利采样
+	do {
+		i = i * 0xff;
+		u = prng_get_u8(pp);
+		v = (int)(p * i) & 0xff; //强制类型转换，用于向下取整
+	} while (u == v);
 
-	//return (int)((u - v) >> 31);
-	double r = prng_get_rand(pp);
-	return r < p;
+	return (u - v) >> 31;
 }
 
 static int BaseSampler3(prng* p)
@@ -372,7 +456,7 @@ int sampler_3(void* ctx) {
 	spc = ctx;
 	int s;
 	double r, dss, ccs, dss0;
-	
+
 	s = (int)(spc->center); //=0
 	r = spc->center - s;
 
@@ -418,7 +502,7 @@ int sampler_3(void* ctx) {
 		 */
 
 		x = (z - r) * (z - r) * dss;
-		x = x - z0 * z0 * dss0 ;
+		x = x - z0 * z0 * dss0;
 		if (BerExp(&spc->p, x, ccs)) {
 			/*
 			 * Rejection sampling was centered on r, but the
@@ -430,17 +514,46 @@ int sampler_3(void* ctx) {
 
 }
 
-static int BaseSampler4(prng* p)
+static int BaseSampler4(prng* p, int mark)
 {
 	int z = 0;
 	uint32_t r = prng_get_u32(p) >> 2; // 30bit
 	int temp = 0;
+	uint32_t* DistForBSampler4; // 指向DistForBSampler的指针
 
-	while ((DistForBSampler_4_CDT[z] - r) >> 31)
-	{
-		z = z + 1;
+	// 根据mark的值选择不同的DistForBSampler
+	switch (mark) {
+	case 0:
+		DistForBSampler4 = CDT4_09;
+		break;
+	case 1:
+		DistForBSampler4 = CDT4_10;
+		break;
+	case 2:
+		DistForBSampler4 = CDT4_11;
+		break;
+	case 3:
+		DistForBSampler4 = CDT4_12;
+		break;
+	case 4:
+		DistForBSampler4 = CDT4_13;
+		break;
+	case 5:
+		DistForBSampler4 = CDT4_14;
+		break;
+	case 6:
+		DistForBSampler4 = CDT4_15;
+		break;
+	case 7:
+		DistForBSampler4 = CDT4_16;
+		break;
+	default:
+		DistForBSampler4 = CDT4_16;
 	}
 
+	while ((DistForBSampler4[z] - r) >> 31) {
+		z = z + 1;
+	}
 	return z;
 }
 
@@ -450,16 +563,42 @@ int sampler_4(void* ctx) {
 	spc = ctx;
 	int z = 0;
 
-	// double isigma_min = 1 / spc->sigma_min; // 1 / sigma_min
+	int mark = 7;
+	if (spc->sigma > 0.8 && spc->sigma <= 0.9) {
+		mark = 0;
+	}
+	else if (spc->sigma > 0.9 && spc->sigma <= 1.0) {
+		mark = 1;
+	}
+	else if (spc->sigma > 1.0 && spc->sigma <= 1.1) {
+		mark = 2;
+	}
+	else if (spc->sigma > 1.1 && spc->sigma <= 1.2) {
+		mark = 3;
+	}
+	else if (spc->sigma > 1.2 && spc->sigma <= 1.3) {
+		mark = 4;
+	}
+	else if (spc->sigma > 1.3 && spc->sigma <= 1.4) {
+		mark = 5;
+	}
+	else if (spc->sigma > 1.4 && spc->sigma <= 1.5) {
+		mark = 6;
+
+	}
+	else if (spc->sigma > 1.5 && spc->sigma <= 1.6) {
+		mark = 7;
+	}
+
 	double isigma = 1 / spc->sigma; // 1 / sigma
-	double sis = spc->sigma_min * isigma; // sigma_min / sigma
+	double sis = sigma_minT[mark] * isigma; // sigma_min / sigma
 
 	while (1)
 	{
-		int z0 = BaseSampler4(&spc->p);
-		int b = prng_get_u8(&spc->p) & 1;
+		int z0 = BaseSampler4(&spc->p, mark);
+		int b = prng_get_u8(&spc->p) >> 7;
 		z = (2 * b - 1) * z0 + b;
-		double x = z0 * z0 * 0.1953125;  //直接套用1/1.6^2*0.5
+		double x = z0 * z0 * isigma_maxT[mark];
 		x = x - (z - spc->center) * (z - spc->center) * isigma * isigma * 0.5;
 		if (AcceptSample(&spc->p, sis, x))
 		{
