@@ -1,7 +1,9 @@
-﻿#include <stdio.h>
+﻿#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
 #include "sampler.h"
 #include <time.h>
 #include <stdlib.h>
+
 
 int main() {
 	sampler_shake256_context rng;
@@ -12,16 +14,19 @@ int main() {
 	sampler_shake256_flip(&rng);
 	Zf(prng_init)(&sc.p, &rng);
 
-	srand(11451419); // 设置随机数种子1145 114514 11451419
-	sc.center = (double)rand() / RAND_MAX;
-	sc.sigma = ((double)rand() / RAND_MAX) * 0.8 + 0.8;
+	//srand(11451419); // 设置随机数种子1145 114514 11451419
+	//sc.center = (double)rand() / RAND_MAX;
+	//sc.sigma = ((double)rand() / RAND_MAX) * 0.8 + 0.8;
+
+	sc.center = 0.648;
+	sc.sigma = 0.861;
 	
 	// 定义函数指针
 	int (*func_ptr)();
 
 	int choice;
-	printf("1. CDT反演法c=0, sigma=0.75 \n2. Knuth_Yao法c = 0, sigma = 4 \n3. 查表法c = 0, sigma = 0.75 \n4. 拒绝采样法c = 0, sigma = 0.75 \n5. 高斯卷积法c = 0, sigma = 1024 \n6. 伯努利拒绝采样法c = [0,1), sigma = 1.5 \n7. 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6) \n8. Karney算法 \n输入序号：\n  ");
-	scanf_s("%d", &choice);
+	printf("1. CDT反演法c=0, sigma=0.75 \n2. Knuth_Yao法c = 0, sigma = 4 \n3. 查表法c = 0, sigma = 0.75 \n4. 拒绝采样法c = 0, sigma = 0.75 \n5. 高斯卷积法c = 0, sigma = 1024 \n6. 伯努利拒绝采样法c = [0,1), sigma = 1.5 \n7. 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6) \n8. Karney算法 \n9. 实时计算的拒绝采样法 \n输入序号：\n  ");
+	scanf("%d", &choice);
 
 	// 根据用户的选择，设置函数指针
 	if (choice == 1) {
@@ -40,21 +45,25 @@ int main() {
 		func_ptr = sampler_2;
 	}
 	else if (choice == 6) {
-		sc.sigma_min = 1.5; // 伯努利拒绝采样法c = [0,1), sigma = 1.5
-		sc.sigma = 1.5;
+		sc.sigma = 1.5; // 伯努利拒绝采样法
 		func_ptr = sampler_3;
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
 	}
 	else if (choice == 7) {
-		sc.sigma_min = 0.8; // 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6)
 		func_ptr = sampler_4;
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
 	}
 	else if (choice == 8) {
-		sc.sigma_min = 0; // Karney算法
-		func_ptr = sampler_karney;
+		func_ptr = sampler_karney; // Karney算法
+		printf("center = %f\n", sc.center);
+		printf("sigma = %f\n", sc.sigma);
+	}
+	else if (choice == 9) {
+		scanf("%lf", &sc.center);
+		scanf("%lf", &sc.sigma);
+		func_ptr = sampler_5; // Karney算法
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
 	}
