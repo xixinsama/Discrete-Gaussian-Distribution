@@ -20,7 +20,7 @@
  * */
 
  /*******************Pre-Computation Table********************/
-  //c = 0, sigma = 0.75, 28bit
+ //c = 0, sigma = 0.75, 28bit
 static const uint32_t DistForSampler_1_CDT[] = {
 142782702u,
 260182150u,
@@ -85,18 +85,21 @@ static const uint32_t DistForBaseSampler_CDT[] = {
 268435455u
 };
 
-//c = 0, sigma = 1.5, z+, 28bits
+//c = 0, sigma = 1.5, z+, 48bits
 static const uint32_t DistForBSampler_3_CDT[] = {
-112789371u,
-203104039u,
-249473136u,
-264737517u,
-267959402u,
-268395437u,
-268433274u,
-268435379u,
-268435454u,
-268435455u
+7049335u, 11834005u,
+5644666u, 12834571u,
+2898068u, 9200379u,
+954023u, 14165256u,
+201367u, 13499318u,
+27252u, 2833223u,
+2364u, 13231866u,
+131u, 9598388u,
+4u, 11638397u,
+0u, 1801222u,
+0u, 26416u,
+0u, 248u,
+0u, 1u,
 };
 
 //c = 0, sigma = 0.9--1.6, z+, 30bits
@@ -184,21 +187,11 @@ static const uint32_t CDT4_09[] = {
 1073741823u,
 };
 
-
-// 28bits sigma = 0.75
-static const uint64_t DistForSampler_1_LUT[] = {
-142782702u,
-260182149u,
-268339468u,
-268435264u,
-268435454u,
-268435455u
-};
-
 static const double sigma_minT[] = {
 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5
 };
 
+// 1 / (2 * sigma_max^2)
 static const double isigma_maxT[] = {
 0.617283950617284027373443677789,
 0.500000000000000000000000000000,
@@ -210,7 +203,8 @@ static const double isigma_maxT[] = {
 0.195312499999999861222121921855
 };
 
-static const double DistForSampler_1_Reject[] = {
+// sigma = 0.75, center = 0, len = 7
+static double DistForSampler_1_Reject[] = {
 0.53190701687809405218132496884209103882312774658203125,
 0.437347024091196912021217713117948733270168304443359375,
 0.0303883806158780911399475144207826815545558929443359375,
@@ -269,7 +263,6 @@ int sampler_1_KY(void* ctx) {
 	}
 
 	int s = prng_get_u8(&spc->p) & 1;
-
 	return z = s == 0 ? -z : z;
 }
 
@@ -282,11 +275,11 @@ int sampler_1_LUT(void* ctx)
 
 	uint32_t r = prng_get_u32(&spc->p) >> 4;
 
-	int length = sizeof(DistForSampler_1_LUT) / sizeof(DistForSampler_1_LUT[0]);
+	int length = sizeof(DistForSampler_1_CDT) / sizeof(DistForSampler_1_CDT[0]);
 
 	for (int i = 0; i < length; i++)
 	{
-		if ((r - DistForSampler_1_LUT[i]) >> 31)
+		if ((r - DistForSampler_1_CDT[i]) >> 31)
 		{
 			z = i;
 			break;
@@ -303,21 +296,22 @@ int sampler_1_Reject(void* ctx)
 	int z = 0;
 	sampler_context* spc;
 	spc = ctx;
+	uint8_t u, v;
 
 	while (1)
 	{
-		int t = prng_get_u8(&spc->p) & 7;
-		double u = prng_get_rand(&spc->p);
-
-		if (u < DistForSampler_1_Reject[t])
+		int i = 1;
+		int k = (int)prng_get_u8(&spc->p) & 7;
+		do
 		{
-			int s = prng_get_u8(&spc->p) & 1;
-			return z = (s == 0) ? -t : t;
-			break;
-		}
-		else
+			i = i * 0xff;
+			u = (uint8_t)prng_get_u8(&spc->p);
+			v = (uint8_t)(DistForSampler_1_Reject[k] * i) & 0xff;
+		} while (u == v);
+		if (u < v) //不知道为什么不能使用位移比较大小，下同
 		{
-			continue;
+			int s = (int)(u >> 4) & 1;
+			return z = s == 0 ? -k : k;
 		}
 	}
 }
@@ -326,7 +320,6 @@ static int BaseSampler2_CDT(prng* p)
 {
 	int z = 0;
 	uint32_t r = prng_get_u32(p) >> 4; // 28 bit
-	int temp = 0;
 
 	while ((DistForBaseSampler_CDT[z] - r) >> 31) //未设置边界，在dist中需要保证最后一个数为max
 	{
@@ -373,142 +366,60 @@ static int AcceptSample(prng* pp, double sis, double x)
 		v = (int)(p * i) & 0xff; //强制类型转换，用于向下取整
 	} while (u == v);
 
-	return (u - v) >> 31;
+	return u < v;
 }
 
 static int BaseSampler3(prng* p)
 {
 	int z = 0;
-	uint32_t r = prng_get_u32(p) >> 4; // 32bit
-	int temp = 0;
+	uint64_t r = prng_get_u64(p);
+	uint32_t v1 = (uint32_t)r & 0xFFFFFF;
+	uint32_t v2 = (uint32_t)(r >> 24) & 0xFFFFFF;
+	size_t u;
 
-	while ((DistForBSampler_3_CDT[z] - r) >> 31)
+	for (u = 0; u < (sizeof DistForBSampler_3_CDT) / sizeof(DistForBSampler_3_CDT[0]); u += 2)
 	{
-		z = z + 1;
+		uint32_t w1, w2, cc;
+		w1 = DistForBSampler_3_CDT[u + 1];
+		w2 = DistForBSampler_3_CDT[u + 0];
+		cc = (v1 - w1) >> 31;
+		cc = (v2 - w2 - cc) >> 31;
+		z += (int)cc;
 	}
-
 	return z;
-}
-
-/*
- * Sample a bit with probability exp(-x) for some x >= 0.
- */
-static int
-BerExp(prng* p, double x, double ccs)
-{
-	int s, i;
-	double r;
-	uint32_t sw, w;
-	uint64_t z;
-
-	/*
-	 * Reduce x modulo log(2): x = s*log(2) + r, with s an integer,
-	 * and 0 <= r < log(2). Since x >= 0, we can use fpr_trunc().
-	 */
-	s = (int)(uint64_t)(x * 1.4426950408889634073599246810);
-	r = x - s * 0.69314718055994530941723212146;
-
-	/*
-	 * It may happen (quite rarely) that s >= 64; if sigma = 1.2
-	 * (the minimum value for sigma), r = 0 and b = 1, then we get
-	 * s >= 64 if the half-Gaussian produced a z >= 13, which happens
-	 * with probability about 0.000000000230383991, which is
-	 * approximatively equal to 2^(-32). In any case, if s >= 64,
-	 * then BerExp will be non-zero with probability less than
-	 * 2^(-64), so we can simply saturate s at 63.
-	 */
-	sw = (uint32_t)s;
-	sw ^= (sw ^ 63) & -(int)((63 - sw) >> 31);  //这里跟原来的不同
-	s = (int)sw;
-
-	/*
-	 * Compute exp(-r); we know that 0 <= r < log(2) at this point, so
-	 * we can use fpr_expm_p63(), which yields a result scaled to 2^63.
-	 * We scale it up to 2^64, then right-shift it by s bits because
-	 * we really want exp(-x) = 2^(-s)*exp(-r).
-	 *
-	 * The "-1" operation makes sure that the value fits on 64 bits
-	 * (i.e. if r = 0, we may get 2^64, and we prefer 2^64-1 in that
-	 * case). The bias is negligible since fpr_expm_p63() only computes
-	 * with 51 bits of precision or so.
-	 */
-	z = ((fpr_expm_p63(r, ccs) << 1) - 1) >> s;
-
-	/*
-	 * Sample a bit with probability exp(-x). Since x = s*log(2) + r,
-	 * exp(-x) = 2^-s * exp(-r), we compare lazily exp(-x) with the
-	 * PRNG output to limit its consumption, the sign of the difference
-	 * yields the expected result.
-	 */
-	i = 64;
-	do {
-		i -= 8;
-		w = prng_get_u8(p) - ((uint32_t)(z >> i) & 0xFF);
-	} while (!w && i > 0);
-	return (int)(w >> 31);
 }
 
 // Fixed sigma = 1.5 and center c is uniformly distributed over [0,1)
 int sampler_3(void* ctx) {
-	// double sigma = 1.5;
-
+	double sigma = 1.5;
 	sampler_context* spc;
 	spc = ctx;
-	int s;
-	double r, dss, ccs, dss0;
+	int z = 0;
 
-	s = (int)(spc->center); //=0
-	r = spc->center - s;
+	double isigma = 1 / (2 * sigma * sigma);
+	while (1)
+	{
+		int z0 = BaseSampler3(&spc->p);
+		int b = (int)prng_get_u8(&spc->p) & 1;
+		z = (2 * b - 1) * z0 + b;
+		double x = z0 * z0;
+		x = x - (z - spc->center) * (z - spc->center);
+		x = x * isigma;
+		double p = expm_p63(-x);
+		int i = 1;
+		uint16_t u, v;
 
-	double isigma = 1 / spc->sigma;
-	dss = 0.5 * isigma * isigma; //=1 / 2*sigma^2
+		//惰性浮点伯努利采样
+		do {
+			i = i * 0xff;
+			u = prng_get_u8(&spc->p);
+			v = (int)(p * i) & 0xff; //强制类型转换，用于向下取整
+		} while (u == v);
 
-	ccs = isigma * spc->sigma_min;
-
-	dss0 = 0.125 / (spc->sigma_min * spc->sigma_min); //=1 / 8*sigma_min^2
-
-	for (;;) {
-		int z0, z, b;
-		double x;
-
-		z0 = BaseSampler3(&spc->p);
-		b = (int)prng_get_u8(&spc->p) & 1;
-		z = b + ((b << 1) - 1) * z0;
-
-		/*
-		 * Rejection sampling. We want a Gaussian centered on r;
-		 * but we sampled against a Gaussian centered on b (0 or
-		 * 1). But we know that z is always in the range where
-		 * our sampling distribution is greater than the Gaussian
-		 * distribution, so rejection works.
-		 *
-		 * We got z with distribution:
-		 *    G(z) = exp(-((z-b)^2)/(2*sigma0^2))
-		 * We target distribution:
-		 *    S(z) = exp(-((z-r)^2)/(2*sigma^2))
-		 * Rejection sampling works by keeping the value z with
-		 * probability S(z)/G(z), and starting again otherwise.
-		 * This requires S(z) <= G(z), which is the case here.
-		 * Thus, we simply need to keep our z with probability:
-		 *    P = exp(-x)
-		 * where:
-		 *    x = ((z-r)^2)/(2*sigma^2) - ((z-b)^2)/(2*sigma0^2)
-		 *
-		 * Here, we scale up the Bernouilli distribution, which
-		 * makes rejection more probable, but makes rejection
-		 * rate sufficiently decorrelated from the Gaussian
-		 * center and standard deviation that the whole sampler
-		 * can be said to be constant-time.
-		 */
-
-		x = (z - r) * (z - r) * dss;
-		x = x - z0 * z0 * dss0;
-		if (BerExp(&spc->p, x, ccs)) {
-			/*
-			 * Rejection sampling was centered on r, but the
-			 * actual center is mu = s + r.
-			 */
-			return s + z;
+		if (u < v)
+		{
+			return z;
+			break;
 		}
 	}
 
@@ -617,3 +528,12 @@ int sampler_karney(void* ctx)
 	return z;
 }
 
+//对任意标准差，任意中心的实时计算拒绝采样法
+int sampler_5(void* ctx)
+{
+	sampler_context* spc;
+	spc = ctx;
+	int z = 0;
+
+	return z;
+}
