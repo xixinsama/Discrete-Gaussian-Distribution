@@ -85,21 +85,18 @@ static const uint32_t DistForBaseSampler_CDT[] = {
 268435455u
 };
 
-//c = 0, sigma = 1.5, z+, 48bits
+//c = 0, sigma = 1.5, z+, 30bits
 static const uint32_t DistForBSampler_3_CDT[] = {
-7049335u, 11834005u,
-5644666u, 12834571u,
-2898068u, 9200379u,
-954023u, 14165256u,
-201367u, 13499318u,
-27252u, 2833223u,
-2364u, 13231866u,
-131u, 9598388u,
-4u, 11638397u,
-0u, 1801222u,
-0u, 26416u,
-0u, 248u,
-0u, 1u,
+451157485u,
+812416158u,
+997892545u,
+1058950071u,
+1071837610u,
+1073581749u,
+1073733096u,
+1073741516u,
+1073741817u,
+1073741823u
 };
 
 //c = 0, sigma = 0.9--1.6, z+, 30bits
@@ -365,30 +362,19 @@ static int AcceptSample(prng* pp, double sis, double x)
 		u = prng_get_u8(pp);
 		v = (int)(p * i) & 0xff; //强制类型转换，用于向下取整
 	} while (u == v);
-
 	return u < v;
 }
 
-static int BaseSampler3(prng* p)
+static inline int BaseSampler3(prng* p)
 {
 	int z = 0;
-	uint64_t r = prng_get_u64(p);
-	uint32_t v1 = (uint32_t)r & 0xFFFFFF;
-	uint32_t v2 = (uint32_t)(r >> 24) & 0xFFFFFF;
-	size_t u;
-
-	for (u = 0; u < (sizeof DistForBSampler_3_CDT) / sizeof(DistForBSampler_3_CDT[0]); u += 2)
+	uint32_t r = prng_get_u32(p) >> 2;
+	while ((DistForBSampler_3_CDT[z] - r) >> 31) //未设置边界，在dist中需要保证最后一个数为max
 	{
-		uint32_t w1, w2, cc;
-		w1 = DistForBSampler_3_CDT[u + 1];
-		w2 = DistForBSampler_3_CDT[u + 0];
-		cc = (v1 - w1) >> 31;
-		cc = (v2 - w2 - cc) >> 31;
-		z += (int)cc;
+		z = z + 1;
 	}
 	return z;
 }
-
 // Fixed sigma = 1.5 and center c is uniformly distributed over [0,1)
 int sampler_3(void* ctx) {
 	double sigma = 1.5;
@@ -425,7 +411,7 @@ int sampler_3(void* ctx) {
 
 }
 
-static int BaseSampler4(prng* p, int mark)
+static inline int BaseSampler4(prng* p, int mark)
 {
 	int z = 0;
 	uint32_t r = prng_get_u32(p) >> 2; // 30bit
