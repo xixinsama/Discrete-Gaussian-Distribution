@@ -18,14 +18,14 @@ int main() {
 	//sc.center = (double)rand() / RAND_MAX;
 	//sc.sigma = ((double)rand() / RAND_MAX) * 0.8 + 0.8;
 
-	sc.center = 0.648;
-	sc.sigma = 0.861;
+	sc.center = 0.996;
+	sc.sigma = 1.5;
 	
 	// 定义函数指针
 	int (*func_ptr)();
 
 	int choice;
-	printf("1. CDT反演法c=0, sigma=0.75 \n2. Knuth_Yao法c = 0, sigma = 4 \n3. 查表法c = 0, sigma = 0.75 \n4. 拒绝采样法c = 0, sigma = 0.75 \n5. 高斯卷积法c = 0, sigma = 1024 \n6. 伯努利拒绝采样法c = [0,1), sigma = 1.5 \n7. 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6) \n8. Karney算法 \n9. 实时计算的拒绝采样法 \n输入序号：\n  ");
+	printf("1. CDT反演法c=0, sigma=0.75 \n2. Knuth_Yao法c = 0, sigma = 4 \n3. 查表法c = 0, sigma = 0.75 \n4. 拒绝采样法c = 0, sigma = 0.75 \n5. 高斯卷积法c = 0, sigma = 1024 \n6. 伯努利拒绝采样法c = [0,1), sigma = 1.5 \n7. 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6) \n8. Karney算法 \n9. 实时计算的拒绝采样法 \n10. 并行优化的高斯卷积法 \n输入序号：\n  ");
 	scanf("%d", &choice);
 
 	// 根据用户的选择，设置函数指针
@@ -66,6 +66,9 @@ int main() {
 		func_ptr = sampler_5; // Karney算法
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
+	}
+	else if (choice == 10) {
+		func_ptr = sampler_2_Vector;
 	}
 	else {
 		printf("无效的选择\n");
