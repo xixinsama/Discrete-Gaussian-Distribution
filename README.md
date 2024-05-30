@@ -7,12 +7,12 @@
 将会生成一个output.txt文件存储一秒内所有的采样结果
 
 **内存检测**
-安装：
+安装：  
 `sudo apt update`
-`sudo apt install valgrind`
-内存占用检测：
-`valgrind --tool=massif ./example`
-内存使用情况检测：
+`sudo apt install valgrind`  
+内存占用检测：  
+`valgrind --tool=massif ./example`  
+内存使用情况检测：  
 `valgrind --leak-check=full --show-leak-kinds=all --undef-value-errors=no ./example`
 
 
