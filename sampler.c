@@ -1,4 +1,5 @@
 #include "sampler.h"
+#include<immintrin.h>
 
 /*
  *
@@ -211,6 +212,60 @@ static double DistForSampler_1_Reject[] = {
 0.00000000000001347231703693802467800338413244726765692106662530846961089991964399814605712890625,
 0.00000000000000000012910060610088588833092745214697578012021821598580804957290268930591992102563381195068359375
 };
+
+// z, sigma = 2.5582018962155022023807759978808462619781494140625, 28bits
+static const uint32_t dist1[] = {
+41861532u,
+119426299u,
+181103206u,
+223197130u,
+247854967u,
+260252329u,
+265602187u,
+267583687u,
+268213606u,
+268385481u,
+268425733u,
+268433824u,
+268435219u,
+268435426u,
+268435452u,
+268435455u
+};
+
+// z, sigma = 4.66903810649654449349554852233268320560455322265625, 30bits
+static const uint32_t dist5[] = {
+91745023u,
+271074463u,
+438479619u,
+587746765u,
+714873760u,
+818290180u,
+898646376u,
+958284971u,
+1000562889u,
+1029190028u,
+1047704889u,
+1059142653u,
+1065891661u,
+1069695454u,
+1071743181u,
+1072796126u,
+1073313276u,
+1073555885u,
+1073664596u,
+1073711124u,
+1073730146u,
+1073737573u,
+1073740344u,
+1073741331u,
+1073741667u,
+1073741776u,
+1073741810u,
+1073741820u,
+1073741822u,
+1073741823u
+};
 /*******************Pre-Computation Table********************/
 
 // Fixed sigma = 0.75 and center = 0
@@ -218,14 +273,15 @@ int sampler_1_CDT(void* ctx) {
 	sampler_context* spc;
 	spc = ctx;
 	int z = 0;
-	uint32_t r = prng_get_u32(&spc->p) >> 4;
+	uint32_t r = prng_get_u32(&spc->p);
+	int s = (int)r & 1; //符号位
+	r = r >> 4;
 
 	while ((DistForSampler_1_CDT[z] - r) >> 31) //未设置边界，在dist中需要保证最后一个数为max
 	{
 		z = z + 1;
 	}
 
-	int s = prng_get_u8(&spc->p) & 1;
 	return z = s == 1 ? -z : z;
 }
 
@@ -269,9 +325,9 @@ int sampler_1_LUT(void* ctx)
 	sampler_context* spc;
 	spc = ctx;
 	int z = 0;
-
-	uint32_t r = prng_get_u32(&spc->p) >> 4;
-
+	uint32_t r = prng_get_u32(&spc->p);
+	int s = (int)r & 1;
+	r = r >> 4;
 	int length = sizeof(DistForSampler_1_CDT) / sizeof(DistForSampler_1_CDT[0]);
 
 	for (int i = 0; i < length; i++)
@@ -283,7 +339,6 @@ int sampler_1_LUT(void* ctx)
 		}
 	}
 
-	int s = prng_get_u8(&spc->p) & 1;
 	return z = (s == 0) ? -z : z;
 }
 
@@ -316,14 +371,15 @@ int sampler_1_Reject(void* ctx)
 static int BaseSampler2_CDT(prng* p)
 {
 	int z = 0;
-	uint32_t r = prng_get_u32(p) >> 4; // 28 bit
+	uint32_t r = prng_get_u32(p);
+	int s = (int)r & 1; //符号位
+	r = r >> 4;
 
 	while ((DistForBaseSampler_CDT[z] - r) >> 31) //未设置边界，在dist中需要保证最后一个数为max
 	{
 		z = z + 1;
 	}
 
-	int s = prng_get_u8(p) & 1;
 	return z = s == 1 ? -z : z;
 }
 
@@ -388,12 +444,12 @@ int sampler_3(void* ctx) {
 		int z0 = BaseSampler3(&spc->p);
 		int b = (int)prng_get_u8(&spc->p) & 1;
 		z = (2 * b - 1) * z0 + b;
-		double x = z0 * z0;
-		x = x - (z - spc->center) * (z - spc->center);
+		double x = (z - spc->center) * (z - spc->center);
+		x = x - z0 * z0;
 		x = x * isigma;
-		double p = expm_p63(-x);
+		double p = expm_p63(x);
 		int i = 1;
-		uint16_t u, v;
+		uint8_t u, v;
 
 		//惰性浮点伯努利采样
 		do {
@@ -416,7 +472,7 @@ static inline int BaseSampler4(prng* p, int mark)
 	int z = 0;
 	uint32_t r = prng_get_u32(p) >> 2; // 30bit
 	int temp = 0;
-	uint32_t* DistForBSampler4; // 指向DistForBSampler的指针
+	const uint32_t* DistForBSampler4; // 指向DistForBSampler的指针
 
 	// 根据mark的值选择不同的DistForBSampler
 	switch (mark) {
@@ -481,7 +537,6 @@ int sampler_4(void* ctx) {
 	}
 	else if (spc->sigma > 1.4 && spc->sigma <= 1.5) {
 		mark = 6;
-
 	}
 	else if (spc->sigma > 1.5 && spc->sigma <= 1.6) {
 		mark = 7;
@@ -521,5 +576,54 @@ int sampler_5(void* ctx)
 	spc = ctx;
 	int z = 0;
 
+	return z;
+}
+
+static inline void BaseSampler_Vector(prng* p, __m256i* z_out)
+{
+	__m256i v_z = _mm256_setzero_si256(); //全0向量
+	__m256i v_one = _mm256_set1_epi32(1); //全1向量
+	__m256i v_r = _mm256_set_epi64x(prng_get_u64(p), prng_get_u64(p), prng_get_u64(p), prng_get_u64(p)); //生成256位随机数
+
+	__m256i v_r_shifted = _mm256_srli_epi32(v_r, 4); //右移4位，取低28位
+
+	// 逐个比较，找到第一个大于v_r_shifted的元素
+	for (size_t k = 0; k < sizeof(dist1) / sizeof(dist1[0]); k++)
+	{
+		__m256i v_dist = _mm256_set1_epi32(dist1[k]);
+		__m256i mask = _mm256_cmpgt_epi32(v_r_shifted, v_dist);
+		v_z = _mm256_add_epi32(v_z, _mm256_and_si256(mask, v_one));
+
+		// 如果 v_r_shifted 的所有元素都小于 v_dist，就跳出循环
+		if (_mm256_testz_si256(mask, _mm256_set1_epi32(-1)))
+		{
+			break;
+		}
+	}
+
+	//赋予符号
+	__m256i isHighestBitZero = _mm256_cmpeq_epi32(_mm256_and_si256(v_r, v_one), _mm256_setzero_si256()); // 提取v_r的最低位,并判断是否为零
+	v_z = _mm256_blendv_epi8(v_z, _mm256_sub_epi32(_mm256_setzero_si256(), v_z), isHighestBitZero); // 根据判断结果更新v_z
+
+	*z_out = v_z;
+}
+
+int sampler_2_Vector(void* ctx)
+{
+	sampler_context* spc;
+	spc = ctx;
+	int z = 0;
+
+	__m256i v_z;
+	BaseSampler_Vector(&spc->p, &v_z);
+	__m256i p_z = _mm256_set_epi32(384, 96, 48, 12, 32, 8, 4, 1); //对应dist1
+	//__m256i p_z = _mm256_set_epi32(210, 42, 30, 6, 35, 7, 5, 1); //对应dist5
+	__m256i product = _mm256_mullo_epi32(p_z, v_z); // 两个向量的逐元素相乘
+
+	int* i = (int*)&product;
+	for (int j = 0; j < 8; j++)
+	{
+		z = z + i[j];
+	}
 	return z;
 }
