@@ -203,14 +203,14 @@ static const double isigma_maxT[] = {
 
 // sigma = 0.75, center = 0, len = 7
 static double DistForSampler_1_Reject[] = {
-0.53190701687809405218132496884209103882312774658203125,
-0.437347024091196912021217713117948733270168304443359375,
-0.0303883806158780911399475144207826815545558929443359375,
-0.0003568698513634223075212392739530287144589237868785858154296875,
-0.0000007083258373455691967227575156496044428422464989125728607177734375,
-0.000000000237616846807191745526457224069378539044183895612150081433355808258056640625,
-0.00000000000001347231703693802467800338413244726765692106662530846961089991964399814605712890625,
-0.00000000000000000012910060610088588833092745214697578012021821598580804957290268930591992102563381195068359375
+0.53192304053524364082505826445413,
+0.43736019913598300767887394613354,
+0.030389296063459844687848487865267,
+0.00035688060203969431370685239102158,
+0.00000070834717560584336899825097164096,
+0.00000000023762400499605740608216507442384,
+0.000000000000013472722889431712901342109797289,
+0.00000000000000000012910449524651443744064140859293
 };
 
 // z, sigma = 2.5582018962155022023807759978808462619781494140625, 28bits
@@ -274,10 +274,10 @@ int sampler_1_CDT(void* ctx) {
 	spc = ctx;
 	int z = 0;
 	uint32_t r = prng_get_u32(&spc->p);
-	int s = (int)r & 1; //ç¬¦å·ä½
+	int s = (int)r & 1; //·ûºÅÎ»
 	r = r >> 4;
 
-	while ((DistForSampler_1_CDT[z] - r) >> 31) //æœªè®¾ç½®è¾¹ç•Œï¼Œåœ¨distä¸­éœ€è¦ä¿è¯æœ€åä¸€ä¸ªæ•°ä¸ºmax
+	while ((DistForSampler_1_CDT[z] - r) >> 31) //Î´ÉèÖÃ±ß½ç£¬ÔÚdistÖĞĞèÒª±£Ö¤×îºóÒ»¸öÊıÎªmax
 	{
 		z = z + 1;
 	}
@@ -353,17 +353,18 @@ int sampler_1_Reject(void* ctx)
 	while (1)
 	{
 		int i = 1;
-		int k = (int)prng_get_u8(&spc->p) & 7; //å–0-7çš„å‡åŒ€éšæœºæ•°
+		int k = (int)prng_get_u8(&spc->p) & 7; //È¡0-7µÄ¾ùÔÈËæ»úÊı
 		do
 		{
-			i = i * 0xff;
-			u = (uint8_t)prng_get_u8(&spc->p);
+			i = i * 0xff; //8bit, È«1, 256
+			u = (uint8_t)prng_get_u8(&spc->p); //0-256µÄ¾ùÔÈËæ»úÊı
 			v = (uint8_t)(DistForSampler_1_Reject[k] * i) & 0xff;
 		} while (u == v);
-		if (u < v) //ä¸çŸ¥é“ä¸ºä»€ä¹ˆä¸èƒ½ä½¿ç”¨ä½ç§»æ¯”è¾ƒå¤§å°ï¼Œä¸‹åŒ
+		if (u < v) //²»ÖªµÀÎªÊ²Ã´²»ÄÜÊ¹ÓÃÎ»ÒÆ±È½Ï´óĞ¡£¬ÏÂÍ¬
 		{
-			int s = (int)u & 1;  //å–uæœ€ä½ä½
-			return z = s == 0 ? -s : s;
+			int s = prng_get_u8(&spc->p) & 1;
+			return z = s == 0 ? -k : k;
+			break;
 		}
 	}
 }
@@ -372,10 +373,10 @@ static int BaseSampler2_CDT(prng* p)
 {
 	int z = 0;
 	uint32_t r = prng_get_u32(p);
-	int s = (int)r & 1; //ç¬¦å·ä½
+	int s = (int)r & 1; //·ûºÅÎ»
 	r = r >> 4;
 
-	while ((DistForBaseSampler_CDT[z] - r) >> 31) //æœªè®¾ç½®è¾¹ç•Œï¼Œåœ¨distä¸­éœ€è¦ä¿è¯æœ€åä¸€ä¸ªæ•°ä¸ºmax
+	while ((DistForBaseSampler_CDT[z] - r) >> 31) //Î´ÉèÖÃ±ß½ç£¬ÔÚdistÖĞĞèÒª±£Ö¤×îºóÒ»¸öÊıÎªmax
 	{
 		z = z + 1;
 	}
@@ -404,7 +405,7 @@ int sampler_2(void* ctx) {
 	return z;
 }
 
-// æ¥å—é‡‡æ ·ï¼Œè¿”å›0æˆ–1
+// ½ÓÊÜ²ÉÑù£¬·µ»Ø0»ò1
 static int AcceptSample(prng* pp, double sis, double x)
 {
 	double p = sis * expm_p63(-x);;
@@ -412,11 +413,11 @@ static int AcceptSample(prng* pp, double sis, double x)
 	int i = 1;
 	uint16_t u, v;
 
-	//æƒ°æ€§æµ®ç‚¹ä¼¯åŠªåˆ©é‡‡æ ·
+	//¶èĞÔ¸¡µã²®Å¬Àû²ÉÑù
 	do {
 		i = i * 0xff;
 		u = prng_get_u8(pp);
-		v = (int)(p * i) & 0xff; //å¼ºåˆ¶ç±»å‹è½¬æ¢ï¼Œç”¨äºå‘ä¸‹å–æ•´
+		v = (int)(p * i) & 0xff; //Ç¿ÖÆÀàĞÍ×ª»»£¬ÓÃÓÚÏòÏÂÈ¡Õû
 	} while (u == v);
 	return u < v;
 }
@@ -425,7 +426,7 @@ static inline int BaseSampler3(prng* p)
 {
 	int z = 0;
 	uint32_t r = prng_get_u32(p) >> 2;
-	while ((DistForBSampler_3_CDT[z] - r) >> 31) //æœªè®¾ç½®è¾¹ç•Œï¼Œåœ¨distä¸­éœ€è¦ä¿è¯æœ€åä¸€ä¸ªæ•°ä¸ºmax
+	while ((DistForBSampler_3_CDT[z] - r) >> 31) //Î´ÉèÖÃ±ß½ç£¬ÔÚdistÖĞĞèÒª±£Ö¤×îºóÒ»¸öÊıÎªmax
 	{
 		z = z + 1;
 	}
@@ -451,11 +452,11 @@ int sampler_3(void* ctx) {
 		int i = 1;
 		uint8_t u, v;
 
-		//æƒ°æ€§æµ®ç‚¹ä¼¯åŠªåˆ©é‡‡æ ·
+		//¶èĞÔ¸¡µã²®Å¬Àû²ÉÑù
 		do {
 			i = i * 0xff;
 			u = prng_get_u8(&spc->p);
-			v = (int)(p * i) & 0xff; //å¼ºåˆ¶ç±»å‹è½¬æ¢ï¼Œç”¨äºå‘ä¸‹å–æ•´
+			v = (int)(p * i) & 0xff; //Ç¿ÖÆÀàĞÍ×ª»»£¬ÓÃÓÚÏòÏÂÈ¡Õû
 		} while (u == v);
 
 		if (u < v)
@@ -472,9 +473,9 @@ static inline int BaseSampler4(prng* p, int mark)
 	int z = 0;
 	uint32_t r = prng_get_u32(p) >> 2; // 30bit
 	int temp = 0;
-	const uint32_t* DistForBSampler4; // æŒ‡å‘DistForBSamplerçš„æŒ‡é’ˆ
+	const uint32_t* DistForBSampler4; // Ö¸ÏòDistForBSamplerµÄÖ¸Õë
 
-	// æ ¹æ®markçš„å€¼é€‰æ‹©ä¸åŒçš„DistForBSampler
+	// ¸ù¾İmarkµÄÖµÑ¡Ôñ²»Í¬µÄDistForBSampler
 	switch (mark) {
 	case 0:
 		DistForBSampler4 = CDT4_09;
@@ -569,7 +570,7 @@ int sampler_karney(void* ctx)
 	return z;
 }
 
-//å¯¹ä»»æ„æ ‡å‡†å·®ï¼Œä»»æ„ä¸­å¿ƒçš„å®æ—¶è®¡ç®—æ‹’ç»é‡‡æ ·æ³•
+//¶ÔÈÎÒâ±ê×¼²î£¬ÈÎÒâÖĞĞÄµÄÊµÊ±¼ÆËã¾Ü¾ø²ÉÑù·¨
 int sampler_5(void* ctx)
 {
 	sampler_context* spc;
@@ -581,29 +582,29 @@ int sampler_5(void* ctx)
 
 static inline void BaseSampler_Vector(prng* p, __m256i* z_out)
 {
-	__m256i v_z = _mm256_setzero_si256(); //å…¨0å‘é‡
-	__m256i v_one = _mm256_set1_epi32(1); //å…¨1å‘é‡
-	__m256i v_r = _mm256_set_epi64x(prng_get_u64(p), prng_get_u64(p), prng_get_u64(p), prng_get_u64(p)); //ç”Ÿæˆ256ä½éšæœºæ•°
+	__m256i v_z = _mm256_setzero_si256(); //È«0ÏòÁ¿
+	__m256i v_one = _mm256_set1_epi32(1); //È«1ÏòÁ¿
+	__m256i v_r = _mm256_set_epi64x(prng_get_u64(p), prng_get_u64(p), prng_get_u64(p), prng_get_u64(p)); //Éú³É256Î»Ëæ»úÊı
 
-	__m256i v_r_shifted = _mm256_srli_epi32(v_r, 4); //å³ç§»4ä½ï¼Œå–ä½28ä½
+	__m256i v_r_shifted = _mm256_srli_epi32(v_r, 4); //ÓÒÒÆ4Î»£¬È¡µÍ28Î»
 
-	// é€ä¸ªæ¯”è¾ƒï¼Œæ‰¾åˆ°ç¬¬ä¸€ä¸ªå¤§äºv_r_shiftedçš„å…ƒç´ 
+	// Öğ¸ö±È½Ï£¬ÕÒµ½µÚÒ»¸ö´óÓÚv_r_shiftedµÄÔªËØ
 	for (size_t k = 0; k < sizeof(dist1) / sizeof(dist1[0]); k++)
 	{
 		__m256i v_dist = _mm256_set1_epi32(dist1[k]);
 		__m256i mask = _mm256_cmpgt_epi32(v_r_shifted, v_dist);
 		v_z = _mm256_add_epi32(v_z, _mm256_and_si256(mask, v_one));
 
-		// å¦‚æœ v_r_shifted çš„æ‰€æœ‰å…ƒç´ éƒ½å°äº v_distï¼Œå°±è·³å‡ºå¾ªç¯
+		// Èç¹û v_r_shifted µÄËùÓĞÔªËØ¶¼Ğ¡ÓÚ v_dist£¬¾ÍÌø³öÑ­»·
 		if (_mm256_testz_si256(mask, _mm256_set1_epi32(-1)))
 		{
 			break;
 		}
 	}
 
-	//èµ‹äºˆç¬¦å·
-	__m256i isHighestBitZero = _mm256_cmpeq_epi32(_mm256_and_si256(v_r, v_one), _mm256_setzero_si256()); // æå–v_rçš„æœ€ä½ä½,å¹¶åˆ¤æ–­æ˜¯å¦ä¸ºé›¶
-	v_z = _mm256_blendv_epi8(v_z, _mm256_sub_epi32(_mm256_setzero_si256(), v_z), isHighestBitZero); // æ ¹æ®åˆ¤æ–­ç»“æœæ›´æ–°v_z
+	//¸³Óè·ûºÅ
+	__m256i isHighestBitZero = _mm256_cmpeq_epi32(_mm256_and_si256(v_r, v_one), _mm256_setzero_si256()); // ÌáÈ¡v_rµÄ×îµÍÎ»,²¢ÅĞ¶ÏÊÇ·ñÎªÁã
+	v_z = _mm256_blendv_epi8(v_z, _mm256_sub_epi32(_mm256_setzero_si256(), v_z), isHighestBitZero); // ¸ù¾İÅĞ¶Ï½á¹û¸üĞÂv_z
 
 	*z_out = v_z;
 }
@@ -616,9 +617,9 @@ int sampler_2_Vector(void* ctx)
 
 	__m256i v_z;
 	BaseSampler_Vector(&spc->p, &v_z);
-	__m256i p_z = _mm256_set_epi32(384, 96, 48, 12, 32, 8, 4, 1); //å¯¹åº”dist1
-	//__m256i p_z = _mm256_set_epi32(210, 42, 30, 6, 35, 7, 5, 1); //å¯¹åº”dist5
-	__m256i product = _mm256_mullo_epi32(p_z, v_z); // ä¸¤ä¸ªå‘é‡çš„é€å…ƒç´ ç›¸ä¹˜
+	__m256i p_z = _mm256_set_epi32(384, 96, 48, 12, 32, 8, 4, 1); //¶ÔÓ¦dist1
+	//__m256i p_z = _mm256_set_epi32(210, 42, 30, 6, 35, 7, 5, 1); //¶ÔÓ¦dist5
+	__m256i product = _mm256_mullo_epi32(p_z, v_z); // Á½¸öÏòÁ¿µÄÖğÔªËØÏà³Ë
 
 	int* i = (int*)&product;
 	for (int j = 0; j < 8; j++)
