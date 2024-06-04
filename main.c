@@ -13,14 +13,9 @@ int main() {
 	sampler_shake256_inject(&rng, (const void*)"test sampler", 12);
 	sampler_shake256_flip(&rng);
 	Zf(prng_init)(&sc.p, &rng);
-
-	//srand(11451419); // 设置随机数种子1145 114514 11451419
-	//sc.center = (double)rand() / RAND_MAX;
-	//sc.sigma = ((double)rand() / RAND_MAX) * 0.8 + 0.8;
-
-	sc.center = 0.996;
-	sc.sigma = 1.5;
 	
+	sc.center = 0;
+	sc.sigma = 1;
 	// 定义函数指针
 	int (*func_ptr)();
 
@@ -46,22 +41,34 @@ int main() {
 	}
 	else if (choice == 6) {
 		sc.sigma = 1.5; // 伯努利拒绝采样法
+		printf("输入标准差[0.8, 1.6]：");
+		scanf("%lf", &sc.sigma);
 		func_ptr = sampler_3;
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
 	}
 	else if (choice == 7) {
+		printf("输入中心[0, 1)：");
+		scanf("%lf", &sc.center);
+		printf("输入标准差[0.8, 1.6]：");
+		scanf("%lf", &sc.sigma);
 		func_ptr = sampler_4;
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
 	}
 	else if (choice == 8) {
+		printf("输入中心[0, 1)：");
+		scanf("%lf", &sc.center);
+		printf("输入标准差[0.8, 1.6]：");
+		scanf("%lf", &sc.sigma);
 		func_ptr = sampler_karney; // Karney算法
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
 	}
 	else if (choice == 9) {
+		printf("输入中心[0, 1)：");
 		scanf("%lf", &sc.center);
+		printf("输入标准差[0.8, 1.6]：");
 		scanf("%lf", &sc.sigma);
 		func_ptr = sampler_5; // Karney算法
 		printf("center = %f\n", sc.center);

@@ -203,7 +203,6 @@ typedef struct {
 // 计算exp(-x)的近似值
 static inline double expm_p63(double x)
 {
-
 	double y;
 	if (x > 1)
 	{
@@ -230,8 +229,8 @@ static inline double expm_p63(double x)
 		y = 0.999999999999994892974086724280 - y * x;
 		y = 1.000000000000000000000000000000 - y * x;
 	}
+	
 	return y;
-
 }
 
 /* ==================================================================== */
