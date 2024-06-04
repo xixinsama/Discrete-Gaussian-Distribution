@@ -573,11 +573,41 @@ int sampler_karney(void* ctx)
 //对任意标准差，任意中心的实时计算拒绝采样法
 int sampler_5(void* ctx)
 {
+	int z = 0;
 	sampler_context* spc;
 	spc = ctx;
-	int z = 0;
 
-	return z;
+	uint8_t u, v;
+	double x, p;
+	double isigma = 1 / spc->sigma;
+	int cut = (int)(3 * spc->sigma) + 1; //截断范围
+	int i, k = 0;
+
+	while (1)
+	{
+		do
+		{
+			k = (int)(prng_get_u8(&spc->p) & 15);
+		} while (k > 2 * cut);
+		k = k - cut;
+
+		x = 0.5 * (k - spc->center) * (k - spc->center) * isigma * isigma;
+		// p = exp(-x);
+		p = expm_p63(x);
+
+		i = 1;
+		do
+		{
+			i = i * 0xff;
+			u = (uint8_t)prng_get_u8(&spc->p);
+			v = (uint8_t)(p * i) & 0xff;
+		} while (u == v);
+
+		if (u < v)
+		{
+			return z = k;
+		}
+	}
 }
 
 static inline void BaseSampler_Vector(prng* p, __m256i* z_out)
