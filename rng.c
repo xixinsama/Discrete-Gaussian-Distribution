@@ -34,7 +34,7 @@
 #include "sampler.h"
 
 
- /* see sampler.h */
+ /* see inner.h */
 void
 Zf(prng_init)(prng* p, sampler_shake256_context* src)
 {
@@ -42,7 +42,6 @@ Zf(prng_init)(prng* p, sampler_shake256_context* src)
 	 * To ensure reproducibility for a given seed, we
 	 * must enforce little-endian interpretation of
 	 * the state words.
-	 * 为了确保给定种子的可重复性，我们必须强制对状态字进行小端解释。
 	 */
 	uint8_t tmp[56];
 	uint64_t th, tl;
@@ -92,7 +91,6 @@ Zf(prng_refill)(prng* p)
 	/*
 	 * State uses local endianness. Only the output bytes must be
 	 * converted to little endian (if used on a big-endian machine).
-	 * 状态使用本地字节顺序。 只有输出字节必须转换为小端（如果在大端机器上使用）
 	 */
 	cc = *(uint64_t*)(p->state.d + 48);
 	for (u = 0; u < 8; u++) {
@@ -167,7 +165,7 @@ Zf(prng_refill)(prng* p)
 	p->ptr = 0;
 }
 
-/* see sampler.h */
+/* see inner.h */
 void
 Zf(prng_get_bytes)(prng* p, void* dst, size_t len)
 {

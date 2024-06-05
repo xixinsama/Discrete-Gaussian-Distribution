@@ -484,7 +484,7 @@ process_block(uint64_t* A)
 }
 
 
-/* see sampler.h */
+/* see inner.h */
 void
 Zf(i_shake256_init)(sampler_shake256_context* sc)
 {
@@ -493,12 +493,11 @@ Zf(i_shake256_init)(sampler_shake256_context* sc)
 	/*
 	 * Representation of an all-ones uint64_t is the same regardless
 	 * of local endianness.
-	 * 无论本地字节序如何，全 1 uint64_t 的表示形式都是相同的。
 	 */
 	memset(sc->st.A, 0, sizeof sc->st.A);
 }
 
-/* see sampler.h */
+/* see inner.h */
 void
 Zf(i_shake256_inject)(sampler_shake256_context* sc, const uint8_t* in, size_t len)
 {
@@ -537,7 +536,6 @@ Zf(i_shake256_flip)(sampler_shake256_context* sc)
 	 * We apply padding and pre-XOR the value into the state. We
 	 * set dptr to the end of the buffer, so that first call to
 	 * shake_extract() will process the block.
-	 * 我们应用填充并将值预异或到状态中。 我们将 dptr 设置为缓冲区的末尾，以便第一次调用 shake_extract() 将处理该块。
 	 */
 	unsigned v;
 
