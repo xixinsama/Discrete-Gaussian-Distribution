@@ -4,31 +4,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include<immintrin.h>
-#include<omp.h>
-
-/**************************************************************************
- ************************     API     *************************************
- **************************************************************************
- */
-
-
-int sampler_1_CDT(void* ctx);
-int sampler_1_KY(void* ctx);
-int sampler_1_LUT(void* ctx);
-int sampler_1_Reject(void* ctx);
-
-int sampler_2(void* ctx);
-
-int sampler_3(void* ctx);
-
-int sampler_4(void* ctx);
-
-int sampler_karney(void* ctx);
-
-int sampler_5(void* ctx);
-
-int sampler_2_Vector(void* ctx);
 
 /*
  * "Naming" macro used to apply a consistent prefix over all global
@@ -76,16 +51,16 @@ void Zf(i_shake256_extract)(
  * A PRNG based on ChaCha20 is implemented; it is seeded from a SHAKE256
  * context (flipped) and is used for bulk pseudorandom generation.
  * A system-dependent seed generator is also provided.
- * ÊµÏÖÁË»ùÓÚChaCha20µÄPRNG£» ËüÊÇ´Ó SHAKE256 ÉÏÏÂÎÄ£¨·­×ª£©²¥ÖÖµÄ£¬ÓÃÓÚÅúÁ¿Î±Ëæ»úÉú³É¡£
- * »¹Ìá¹©ÁËÒÀÀµÓÚÏµÍ³µÄÖÖ×ÓÉú³ÉÆ÷¡£
+ * å®žçŽ°äº†åŸºäºŽChaCha20çš„PRNGï¼› å®ƒæ˜¯ä»Ž SHAKE256 ä¸Šä¸‹æ–‡ï¼ˆç¿»è½¬ï¼‰æ’­ç§çš„ï¼Œç”¨äºŽæ‰¹é‡ä¼ªéšæœºç”Ÿæˆã€‚
+ * è¿˜æä¾›äº†ä¾èµ–äºŽç³»ç»Ÿçš„ç§å­ç”Ÿæˆå™¨ã€‚
  */
 
  /*
   * Structure for a PRNG. This includes a large buffer so that values
   * get generated in advance. The 'state' is used to keep the current
   * PRNG algorithm state (contents depend on the selected algorithm).
-  * PRNG µÄ½á¹¹¡£ Õâ°üÀ¨Ò»¸ö´ó»º³åÇø£¬ÒÔ±ãÌáÇ°Éú³ÉÖµ¡£ ¡®state¡¯ÓÃÓÚ±£´æµ±Ç°PRNGËã·¨×´Ì¬£¨ÄÚÈÝÈ¡¾öÓÚËùÑ¡Ëã·¨£©¡£
-  * Óë¡°dummy_u64¡±µÄÁªºÏÊÇÎªÁËÈ·±£ÕýÈ·¶ÔÆë
+  * PRNG çš„ç»“æž„ã€‚ è¿™åŒ…æ‹¬ä¸€ä¸ªå¤§ç¼“å†²åŒºï¼Œä»¥ä¾¿æå‰ç”Ÿæˆå€¼ã€‚ â€˜stateâ€™ç”¨äºŽä¿å­˜å½“å‰PRNGç®—æ³•çŠ¶æ€ï¼ˆå†…å®¹å–å†³äºŽæ‰€é€‰ç®—æ³•ï¼‰ã€‚
+  * ä¸Žâ€œdummy_u64â€çš„è”åˆæ˜¯ä¸ºäº†ç¡®ä¿æ­£ç¡®å¯¹é½
   *
   * The unions with 'dummy_u64' are there to ensure proper alignment for
   * 64-bit direct access.
@@ -133,9 +108,9 @@ prng_get_u64(prng* p)
 	 * This means that we may drop the last few bytes, but this allows
 	 * for faster extraction code. Also, it means that we never leave
 	 * an empty buffer.
-	 * Èç¹û»º³åÇøÖÐµÄ×Ö½ÚÊýÉÙÓÚ 9 ¸ö×Ö½Ú£¬ÎÒÃÇ½«ÖØÐÂÌî³äËü¡£
-	 * ÕâÒâÎ¶×ÅÎÒÃÇ¿ÉÄÜ»áÉ¾³ý×îºó¼¸¸ö×Ö½Ú£¬µ«Õâ¿ÉÒÔ¸ü¿ìµØÌáÈ¡´úÂë¡£
-	 * ÁíÍâ£¬ÕâÒâÎ¶×ÅÎÒÃÇÓÀÔ¶²»»áÁôÏÂ¿Õ»º³åÇø¡£
+	 * å¦‚æžœç¼“å†²åŒºä¸­çš„å­—èŠ‚æ•°å°‘äºŽ 9 ä¸ªå­—èŠ‚ï¼Œæˆ‘ä»¬å°†é‡æ–°å¡«å……å®ƒã€‚
+	 * è¿™æ„å‘³ç€æˆ‘ä»¬å¯èƒ½ä¼šåˆ é™¤æœ€åŽå‡ ä¸ªå­—èŠ‚ï¼Œä½†è¿™å¯ä»¥æ›´å¿«åœ°æå–ä»£ç ã€‚
+	 * å¦å¤–ï¼Œè¿™æ„å‘³ç€æˆ‘ä»¬æ°¸è¿œä¸ä¼šç•™ä¸‹ç©ºç¼“å†²åŒºã€‚
 	 */
 	u = p->ptr;
 	if (u >= (sizeof p->buf.d) - 9) {
@@ -200,7 +175,7 @@ typedef struct {
 	double sigma;
 } sampler_context;
 
-// ¼ÆËãexp(-x)µÄ½üËÆÖµ
+// è®¡ç®—exp(-x)çš„è¿‘ä¼¼å€¼
 static inline double expm_p63(double x)
 {
 	double y;
@@ -232,6 +207,28 @@ static inline double expm_p63(double x)
 	
 	return y;
 }
+
+/**************************************************************************
+ ************************     API     *************************************
+ **************************************************************************
+ */
+
+int sampler_1_CDT(void* ctx);
+int sampler_1_KY(void* ctx);
+int sampler_1_LUT(void* ctx);
+int sampler_1_Reject(void* ctx);
+
+int sampler_2(void* ctx);
+
+int sampler_3(void* ctx);
+
+int sampler_4(void* ctx);
+
+int sampler_karney(void* ctx);
+
+int sampler_5(void* ctx);
+
+int sampler_2_Vector(void* ctx);
 
 /* ==================================================================== */
 
