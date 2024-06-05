@@ -41,8 +41,8 @@ int main() {
 	}
 	else if (choice == 6) {
 		sc.sigma = 1.5; // 伯努利拒绝采样法
-		printf("输入标准差[0.8, 1.6]：");
-		scanf("%lf", &sc.sigma);
+		printf("输入中心[0, 1)：");
+		scanf("%lf", &sc.center);
 		func_ptr = sampler_3;
 		printf("center = %f\n", sc.center);
 		printf("sigma = %f\n", sc.sigma);
