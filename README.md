@@ -33,8 +33,18 @@ avstack.pl 是一个Perl脚本，用于分析GCC编译器生成的 .su 文件，
 1. 在编译时加入`-fstack-usage`选项  
 一旦你有了 .su 文件，你可以运行 avstack.pl 脚本，传递所有 .o 文件作为参数。
 .su 文件假定位于与其对应的 .o 文件相同的目录中。avstack.pl 脚本将读取所有 .su 文件，并解析 .o 文件来构建调用图，
-然后计算每个函数的最大堆栈使用量。  
-2. 在命令行中使用 avstack.pl 的示例：  
+然后计算每个函数的最大堆栈使用量。
+2. 下载文件后使用 chmod 命令给文件添加执行权限： 
+`chmod +x avstack.pl`  
+3. avr-objdump 是AVR工具链的一部分，通常用于处理AVR微控制器的对象文件。
+如果你在处理非AVR架构的代码，你可能需要使用适合你架构的 objdump 工具。
+如果你的代码是为x86或x86_64架构编译的，
+你应该使用 objdump 而不是 avr-objdump。你可以尝试以下步骤来解决这个问题：  
+3.1. 安装binutils：确保你的系统上安装了 binutils，因为 objdump 包含在这个包中。你可以使用以下命令安装：  
+  `sudo apt-get install binutils`  
+3.2. 修改avstack.pl：  
+   编辑 avstack.pl 脚本，将所有的 avr-objdump 调用替换为 objdump。这可以通过简单的文本替换来完成。
+5. 在命令行中使用 avstack.pl 的示例：  
 `./avstack.pl *.o`
 
 
