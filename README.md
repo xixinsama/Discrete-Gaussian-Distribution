@@ -8,12 +8,34 @@
 
 **内存检测**
 安装：  
-`sudo apt update`
+`sudo apt update`  
 `sudo apt install valgrind`  
 内存占用检测：  
 `valgrind --tool=massif ./example`  
 内存使用情况检测：  
 `valgrind --leak-check=full --show-leak-kinds=all --undef-value-errors=no ./example`
+
+
+使用pip安装ELFFile库：  
+`pip3 install pyelftools`  
+然后运行testdata.py文件
+
+*说明*  
+在一个可执行文件中，.text、.data、.bss 和 .rodata 段代表了程序的不同部分：  
+.text段：包含程序的机器代码，也就是编译后的二进制指令。这是程序的实际“代码”部分。  
+.data段：包含已初始化的全局变量和静态变量。这些变量在程序开始执行前已经被赋予了初始值。  
+.bss段：包含未初始化的全局变量和静态变量。在程序开始执行时，这些变量会被自动初始化为零。  
+.rodata段：包含只读数据，如字符串常量和其他常量数据。这部分数据在程序运行时不会被修改。  
+
+
+**使用 avstack.pl 工具**  
+avstack.pl 是一个Perl脚本，用于分析GCC编译器生成的 .su 文件，这些文件包含了函数的堆栈使用信息。要使用这个工具，你需要：  
+1. 在编译时加入`-fstack-usage`选项  
+一旦你有了 .su 文件，你可以运行 avstack.pl 脚本，传递所有 .o 文件作为参数。
+.su 文件假定位于与其对应的 .o 文件相同的目录中。avstack.pl 脚本将读取所有 .su 文件，并解析 .o 文件来构建调用图，
+然后计算每个函数的最大堆栈使用量。  
+2. 在命令行中使用 avstack.pl 的示例：  
+`./avstack.pl *.o`
 
 
 **包含的算法：**  
