@@ -29,7 +29,9 @@
 
 
 **使用 avstack.pl 工具**  
-avstack.pl 是一个Perl脚本，用于分析GCC编译器生成的 .su 文件，这些文件包含了函数的堆栈使用信息。要使用这个工具，你需要：  
+avstack.pl 是一个Perl脚本，用于分析GCC编译器生成的 .su 文件，这些文件包含了函数的堆栈使用信息。  
+脚本原网站：https://dlbeer.co.nz/oss/avstack.html  
+要使用这个工具，你需要：  
 1. 在编译时加入`-fstack-usage`选项  
 一旦你有了 .su 文件，你可以运行 avstack.pl 脚本，传递所有 .o 文件作为参数。
 .su 文件假定位于与其对应的 .o 文件相同的目录中。avstack.pl 脚本将读取所有 .su 文件，并解析 .o 文件来构建调用图，
