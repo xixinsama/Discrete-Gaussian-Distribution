@@ -1,7 +1,6 @@
 #include "sampler.h"
 #include <immintrin.h>
 
-#define ISIGMA3 (1 / (2 * 1.5 * 1.5)) // 预计算常数
 /*
  *
  * ********************************Attention!!!************************************************
@@ -26,8 +25,7 @@ static const uint32_t DistForSampler_1_CDT[] = {
 142782702u,
 260182150u,
 268339469u,
-268435265u,
-268435455u
+268435265u
 };
 
 // z, sigma = 2.5582018962155022023807759978808462619781494140625, 28bits
@@ -76,7 +74,7 @@ static const uint32_t CDT4_16[] = {
 1073740167u,
 1073741764u,
 1073741822u,
-1073741823u,
+1073741823u
 };
 static const uint32_t CDT4_15[] = {
 451157485u,
@@ -146,7 +144,7 @@ static const uint32_t CDT4_09[] = {
 1071158033u,
 1073707814u,
 1073741692u,
-1073741823u,
+1073741823u
 };
 
 static const double sigma_minT[] = {
@@ -167,15 +165,22 @@ static const double isigma_maxT[] = {
 
 // Fixed sigma = 0.75 and center = 0
 int sampler_1(void *ctx){
-    prng* rng = ctx;
+    sampler_context* spc;
+	spc = ctx;
 	int z = 0;
-	uint32_t r = prng_get_u32(rng);
+	uint32_t r = prng_get_u32(&spc->p);
 	int s = (int)r & 1; //符号位
 	r = r >> 4;
+	int length = sizeof(DistForSampler_1_CDT) / sizeof(DistForSampler_1_CDT[0]);
 
-	while ((DistForSampler_1_CDT[z] - r) >> 31)
+	for (int i = 0; i < length; i++)
 	{
-		z = z + 1;
+		if ((r - DistForSampler_1_CDT[i]) >> 31)
+		{
+			z = i;
+			break;
+		}
+		z = length;
 	}
 
 	return z = s == 1 ? -z : z;
@@ -183,41 +188,44 @@ int sampler_1(void *ctx){
 
 
 // Fixed sigma = 1024 and center = 0
-static inline void BaseSampler_Vector(prng* p, __m256i* z_out)
-{
-	__m256i v_z = _mm256_setzero_si256(); //全0向量
-	__m256i v_one = _mm256_set1_epi32(1); //全1向量
-	__m256i v_r = _mm256_set_epi64x(prng_get_u64(p), prng_get_u64(p), prng_get_u64(p), prng_get_u64(p)); //生成256位随机数
+static inline void BaseSampler_Vector(prng* p, __m256i* z_out) {
+    const __m256i v_zero = _mm256_setzero_si256(); // All zeros
+    const __m256i v_one = _mm256_set1_epi32(1); // All ones
 
-	__m256i v_r_shifted = _mm256_srli_epi32(v_r, 4); //右移4位，取低28位
+    // Generate a 256-bit random number
+    __m256i v_r = _mm256_set_epi64x(prng_get_u64(p), prng_get_u64(p), prng_get_u64(p), prng_get_u64(p));
+    __m256i v_r_shifted = _mm256_srli_epi32(v_r, 4); // Shift right by 4 bits to get lower 28 bits
 
-	// 逐个比较，找到第一个大于v_r_shifted的元素
-	for (size_t k = 0; k < sizeof(DistForSampler_2_CDT) / sizeof(DistForSampler_2_CDT[0]); k++)
-	{
-		__m256i v_dist = _mm256_set1_epi32(DistForSampler_2_CDT[k]);
-		__m256i mask = _mm256_cmpgt_epi32(v_r_shifted, v_dist);
-		v_z = _mm256_add_epi32(v_z, _mm256_and_si256(mask, v_one));
+    // Initialize the result vector to zero
+    __m256i v_z = v_zero;
 
-		// 如果 v_r_shifted 的所有元素都小于 v_dist，就跳出循环
-		if (_mm256_testz_si256(mask, _mm256_set1_epi32(-1)))
-		{
-			break;
-		}
-	}
+    // Iterate through DistForSampler_2_CDT array to compare and update v_z
+    for (size_t k = 0; k < sizeof(DistForSampler_2_CDT) / sizeof(DistForSampler_2_CDT[0]); k++) {
+        __m256i v_dist = _mm256_set1_epi32(DistForSampler_2_CDT[k]);
+        __m256i mask = _mm256_cmpgt_epi32(v_r_shifted, v_dist);
+        v_z = _mm256_add_epi32(v_z, _mm256_and_si256(mask, v_one));
 
-	__m256i isHighestBitZero = _mm256_cmpeq_epi32(_mm256_and_si256(v_r, v_one), _mm256_setzero_si256()); // 提取v_r的最低位,并判断是否为零
-	v_z = _mm256_blendv_epi8(v_z, _mm256_sub_epi32(_mm256_setzero_si256(), v_z), isHighestBitZero); // 根据判断结果更新v_z
+        // Break if all elements in v_r_shifted are less than v_dist
+        if (_mm256_testz_si256(mask, _mm256_set1_epi32(-1))) {
+            break;
+        }
+    }
 
-	*z_out = v_z;
+    // Adjust the sign of v_z based on the lowest bit of v_r
+    __m256i isHighestBitZero = _mm256_cmpeq_epi32(_mm256_and_si256(v_r, v_one), v_zero);
+    v_z = _mm256_blendv_epi8(v_z, _mm256_sub_epi32(v_zero, v_z), isHighestBitZero);
+
+    *z_out = v_z;
 }
 
 int sampler_2(void* ctx)
 {
-	prng* rng = ctx;
+	sampler_context* spc;
+	spc = ctx;
 	int z = 0;
 
 	__m256i v_z;
-	BaseSampler_Vector(rng, &v_z);
+	BaseSampler_Vector(&spc->p, &v_z);
 	__m256i p_z = _mm256_set_epi32(384, 96, 48, 12, 32, 8, 4, 1);
 	__m256i product = _mm256_mullo_epi32(p_z, v_z); // 两个向量的逐元素相乘
 
@@ -231,78 +239,67 @@ int sampler_2(void* ctx)
 
 static inline int BaseSampler3(prng* p)
 {
-    int z = 0;
-    uint32_t r = prng_get_u32(p) >> 2;
-    while ((DistForBSampler_3_CDT[z] - r) >> 31)
-    {
-        z = z + 1;
-    }
-    return z;
+	int z = 0;
+	uint32_t r = prng_get_u32(p) >> 2;
+	while ((DistForBSampler_3_CDT[z] - r) >> 31) //未设置边界，在dist中需要保证最后一个数为max
+	{
+		z = z + 1;
+	}
+	return z;
 }
 
-int sampler_3(void *ctx, double center)
-{
-    prng* rng = ctx;
-    int z = 0;
+// Fixed sigma = 1.5 and center c is uniformly distributed over [0,1)
+int sampler_3(void *ctx, double center){
+    double sigma = 1.5;
+	sampler_context* spc;
+	spc = ctx;
+	int z = 0;
+	double isigma = 1 / (2 * sigma * sigma);
 
-    while (1)
-    {
-        int z0 = BaseSampler3(rng);
-        int b = prng_get_u8(rng) & 1;
-        z = (2 * b - 1) * z0 + b;
-        double x = (z - center) * (z - center) - z0 * z0;
-        x *= ISIGMA3;
-        double p = expm_p63(x);
-        int i = 1;
-        uint8_t u, v;
+	while (1)
+	{
+		int z0 = BaseSampler3(&spc->p);
+		int b = (int)prng_get_u8(&spc->p) & 1;
+		z = (2 * b - 1) * z0 + b;
+		double x = (z - center) * (z - center);
+		x = x - z0 * z0;
+		x = x * isigma;
+		double p = expm_p63(x);
+		int i = 1;
+		uint8_t u, v;
 
-        do {
-            i *= 0xff;
-            u = prng_get_u8(rng);
-            v = (int)(p * i) & 0xff;
-        } while (u == v);
+		//惰性浮点伯努利采样
+		do {
+			i = i * 0xff;
+			u = prng_get_u8(&spc->p);
+			v = (int)(p * i) & 0xff; //强制类型转换，用于向下取整
+		} while (u == v);
 
-        if (u < v)
-        {
-            return z;
-        }
-    }
+		if (u < v)
+		{
+			return z;
+			break;
+		}
+	}
 }
 
 static inline int BaseSampler4(prng* p, int mark)
 {
 	int z = 0;
 	uint32_t r = prng_get_u32(p) >> 2; // 30bit
+	int temp = 0;
 	const uint32_t* DistForBSampler4; // 指向DistForBSampler的指针
 
-	// 根据mark的值选择不同的DistForBSampler
 	switch (mark) {
-	case 0:
-		DistForBSampler4 = CDT4_09;
-		break;
-	case 1:
-		DistForBSampler4 = CDT4_10;
-		break;
-	case 2:
-		DistForBSampler4 = CDT4_11;
-		break;
-	case 3:
-		DistForBSampler4 = CDT4_12;
-		break;
-	case 4:
-		DistForBSampler4 = CDT4_13;
-		break;
-	case 5:
-		DistForBSampler4 = CDT4_14;
-		break;
-	case 6:
-		DistForBSampler4 = CDT4_15;
-		break;
-	case 7:
-		DistForBSampler4 = CDT4_16;
-		break;
-	default:
-		DistForBSampler4 = CDT4_16;
+	case 0: DistForBSampler4 = CDT4_09; break;
+	case 1: DistForBSampler4 = CDT4_10; break;
+	case 2: DistForBSampler4 = CDT4_11; break;
+	case 3: DistForBSampler4 = CDT4_12; break;
+	case 4: DistForBSampler4 = CDT4_13; break;
+	case 5: DistForBSampler4 = CDT4_14; break;
+	case 6: DistForBSampler4 = CDT4_15; break;
+	case 7: DistForBSampler4 = CDT4_16; break;
+	default: DistForBSampler4 = CDT4_16;
 	}
 
 	while ((DistForBSampler4[z] - r) >> 31) {
@@ -329,9 +326,9 @@ static int AcceptSample(prng* pp, double sis, double x)
 }
 
 // sigma is uniformly distributed over (0.8,1.6) and center is uniformly distributed over [0,1)
-int sampler_4(void *ctx, double sigma, double center)
-{
-    prng* rng = ctx;
+int sampler_4(void *ctx, double sigma, double center){
+    sampler_context* spc;
+	spc = ctx;
 	int z = 0;
 
 	int mark = 7;
@@ -365,12 +362,12 @@ int sampler_4(void *ctx, double sigma, double center)
 
 	while (1)
 	{
-		int z0 = BaseSampler4(rng, mark);
-		int b = prng_get_u8(rng) >> 7;
+		int z0 = BaseSampler4(&spc->p, mark);
+		int b = prng_get_u8(&spc->p) >> 7;
 		z = (2 * b - 1) * z0 + b;
 		double x = z0 * z0 * isigma_maxT[mark];
 		x = x - (z - center) * (z - center) * isigma * isigma * 0.5;
-		if (AcceptSample(rng, sis, x))
+		if (AcceptSample(&spc->p, sis, x))
 		{
 			return z;
 			break;
