@@ -165,14 +165,13 @@ static const double isigma_maxT[] = {
 
 // Fixed sigma = 0.75 and center = 0
 int sampler_1(void *ctx){
-    sampler_context* spc;
-	spc = ctx;
+    prng* rng = ctx;
 	int z = 0;
-	uint32_t r = prng_get_u32(&spc->p);
+	uint32_t r = prng_get_u32(rng);
 	int s = (int)r & 1; //符号位
 	r = r >> 4;
-	int length = sizeof(DistForSampler_1_CDT) / sizeof(DistForSampler_1_CDT[0]);
 
+	int length = sizeof(DistForSampler_1_CDT) / sizeof(DistForSampler_1_CDT[0]);
 	for (int i = 0; i < length; i++)
 	{
 		if ((r - DistForSampler_1_CDT[i]) >> 31)
@@ -220,12 +219,11 @@ static inline void BaseSampler_Vector(prng* p, __m256i* z_out) {
 
 int sampler_2(void* ctx)
 {
-	sampler_context* spc;
-	spc = ctx;
+	prng* rng = ctx;
 	int z = 0;
 
 	__m256i v_z;
-	BaseSampler_Vector(&spc->p, &v_z);
+	BaseSampler_Vector(rng, &v_z);
 	__m256i p_z = _mm256_set_epi32(384, 96, 48, 12, 32, 8, 4, 1);
 	__m256i product = _mm256_mullo_epi32(p_z, v_z); // 两个向量的逐元素相乘
 
@@ -251,15 +249,14 @@ static inline int BaseSampler3(prng* p)
 // Fixed sigma = 1.5 and center c is uniformly distributed over [0,1)
 int sampler_3(void *ctx, double center){
     double sigma = 1.5;
-	sampler_context* spc;
-	spc = ctx;
+	prng* rng = ctx;
 	int z = 0;
 	double isigma = 1 / (2 * sigma * sigma);
 
 	while (1)
 	{
-		int z0 = BaseSampler3(&spc->p);
-		int b = (int)prng_get_u8(&spc->p) & 1;
+		int z0 = BaseSampler3(rng);
+		int b = (int)prng_get_u8(rng) & 1;
 		z = (2 * b - 1) * z0 + b;
 		double x = (z - center) * (z - center);
 		x = x - z0 * z0;
@@ -271,7 +268,7 @@ int sampler_3(void *ctx, double center){
 		//惰性浮点伯努利采样
 		do {
 			i = i * 0xff;
-			u = prng_get_u8(&spc->p);
+			u = prng_get_u8(rng);
 			v = (int)(p * i) & 0xff; //强制类型转换，用于向下取整
 		} while (u == v);
 
@@ -327,8 +324,7 @@ static int AcceptSample(prng* pp, double sis, double x)
 
 // sigma is uniformly distributed over (0.8,1.6) and center is uniformly distributed over [0,1)
 int sampler_4(void *ctx, double sigma, double center){
-    sampler_context* spc;
-	spc = ctx;
+    prng* rng = ctx;
 	int z = 0;
 
 	int mark = 7;
@@ -362,12 +358,12 @@ int sampler_4(void *ctx, double sigma, double center){
 
 	while (1)
 	{
-		int z0 = BaseSampler4(&spc->p, mark);
-		int b = prng_get_u8(&spc->p) >> 7;
+		int z0 = BaseSampler4(rng, mark);
+		int b = prng_get_u8(rng) >> 7;
 		z = (2 * b - 1) * z0 + b;
 		double x = z0 * z0 * isigma_maxT[mark];
 		x = x - (z - center) * (z - center) * isigma * isigma * 0.5;
-		if (AcceptSample(&spc->p, sis, x))
+		if (AcceptSample(rng, sis, x))
 		{
 			return z;
 			break;
