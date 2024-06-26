@@ -25,7 +25,8 @@ static const uint32_t DistForSampler_1_CDT[] = {
 142782702u,
 260182150u,
 268339469u,
-268435265u
+268435265u,
+268435455u
 };
 
 // z, sigma = 2.5582018962155022023807759978808462619781494140625, 28bits
@@ -168,49 +169,33 @@ int sampler_1(void *ctx){
     prng* rng = ctx;
 	int z = 0;
 	uint32_t r = prng_get_u32(rng);
-	int s = (int)r & 1; //符号位
+	int s = (int)r & 1; //sign
 	r = r >> 4;
-
-	int length = sizeof(DistForSampler_1_CDT) / sizeof(DistForSampler_1_CDT[0]);
-	for (int i = 0; i < length; i++)
+	while ((DistForSampler_1_CDT[z] - r) >> 31) //边界为dist最后一个
 	{
-		if ((r - DistForSampler_1_CDT[i]) >> 31)
-		{
-			z = i;
-			break;
-		}
-		z = length;
+		z = z + 1;
 	}
-
 	return z = s == 1 ? -z : z;
 }
 
 
 // Fixed sigma = 1024 and center = 0
-static inline void BaseSampler_Vector(prng* p, __m256i* z_out) {
-    const __m256i v_zero = _mm256_setzero_si256(); // All zeros
-    const __m256i v_one = _mm256_set1_epi32(1); // All ones
+static inline void BaseSampler_Vector(prng* p, __m256i* z_out)
+{
+    const __m256i v_zero = _mm256_setzero_si256();
+    const __m256i v_one = _mm256_set1_epi32(1);
 
-    // Generate a 256-bit random number
     __m256i v_r = _mm256_set_epi64x(prng_get_u64(p), prng_get_u64(p), prng_get_u64(p), prng_get_u64(p));
-    __m256i v_r_shifted = _mm256_srli_epi32(v_r, 4); // Shift right by 4 bits to get lower 28 bits
-
-    // Initialize the result vector to zero
+    __m256i v_r_shifted = _mm256_srli_epi32(v_r, 4);
     __m256i v_z = v_zero;
 
-    // Iterate through DistForSampler_2_CDT array to compare and update v_z
     for (size_t k = 0; k < sizeof(DistForSampler_2_CDT) / sizeof(DistForSampler_2_CDT[0]); k++) {
         __m256i v_dist = _mm256_set1_epi32(DistForSampler_2_CDT[k]);
         __m256i mask = _mm256_cmpgt_epi32(v_r_shifted, v_dist);
         v_z = _mm256_add_epi32(v_z, _mm256_and_si256(mask, v_one));
-
-        // Break if all elements in v_r_shifted are less than v_dist
-        if (_mm256_testz_si256(mask, _mm256_set1_epi32(-1))) {
-            break;
-        }
+        if (_mm256_testz_si256(mask, _mm256_set1_epi32(-1))) {break;}
     }
 
-    // Adjust the sign of v_z based on the lowest bit of v_r
     __m256i isHighestBitZero = _mm256_cmpeq_epi32(_mm256_and_si256(v_r, v_one), v_zero);
     v_z = _mm256_blendv_epi8(v_z, _mm256_sub_epi32(v_zero, v_z), isHighestBitZero);
 
@@ -239,7 +224,7 @@ static inline int BaseSampler3(prng* p)
 {
 	int z = 0;
 	uint32_t r = prng_get_u32(p) >> 2;
-	while ((DistForBSampler_3_CDT[z] - r) >> 31) //未设置边界，在dist中需要保证最后一个数为max
+	while ((DistForBSampler_3_CDT[z] - r) >> 31)
 	{
 		z = z + 1;
 	}
@@ -264,18 +249,16 @@ int sampler_3(void *ctx, double center){
 		double p = expm_p63(x);
 		int i = 1;
 		uint8_t u, v;
-
-		//惰性浮点伯努利采样
+		
 		do {
 			i = i * 0xff;
 			u = prng_get_u8(rng);
-			v = (int)(p * i) & 0xff; //强制类型转换，用于向下取整
+			v = (int)(p * i) & 0xff;
 		} while (u == v);
 
 		if (u < v)
 		{
 			return z;
-			break;
 		}
 	}
 }
@@ -284,7 +267,6 @@ static inline int BaseSampler4(prng* p, int mark)
 {
 	int z = 0;
 	uint32_t r = prng_get_u32(p) >> 2; // 30bit
-	int temp = 0;
 	const uint32_t* DistForBSampler4; // 指向DistForBSampler的指针
 
 	switch (mark) {
@@ -308,16 +290,14 @@ static inline int BaseSampler4(prng* p, int mark)
 // 接受采样，返回0或1
 static int AcceptSample(prng* pp, double sis, double x)
 {
-	double p = sis * expm_p63(-x);;
+	double p = sis * expm_p63(-x);
 
 	int i = 1;
 	uint16_t u, v;
-
-	//惰性浮点伯努利采样
 	do {
 		i = i * 0xff;
 		u = prng_get_u8(pp);
-		v = (int)(p * i) & 0xff; //强制类型转换，用于向下取整
+		v = (int)(p * i) & 0xff;
 	} while (u == v);
 	return u < v;
 }
@@ -328,33 +308,17 @@ int sampler_4(void *ctx, double sigma, double center){
 	int z = 0;
 
 	int mark = 7;
-	if (sigma > 0.8 && sigma <= 0.9) {
-		mark = 0;
-	}
-	else if (sigma > 0.9 && sigma <= 1.0) {
-		mark = 1;
-	}
-	else if (sigma > 1.0 && sigma <= 1.1) {
-		mark = 2;
-	}
-	else if (sigma > 1.1 && sigma <= 1.2) {
-		mark = 3;
-	}
-	else if (sigma > 1.2 && sigma <= 1.3) {
-		mark = 4;
-	}
-	else if (sigma > 1.3 && sigma <= 1.4) {
-		mark = 5;
-	}
-	else if (sigma > 1.4 && sigma <= 1.5) {
-		mark = 6;
-	}
-	else if (sigma > 1.5 && sigma <= 1.6) {
-		mark = 7;
-	}
+	if (sigma > 0.8 && sigma <= 0.9) {mark = 0;}
+	else if (sigma > 0.9 && sigma <= 1.0) {mark = 1;}
+	else if (sigma > 1.0 && sigma <= 1.1) {mark = 2;}
+	else if (sigma > 1.1 && sigma <= 1.2) {mark = 3;}
+	else if (sigma > 1.2 && sigma <= 1.3) {mark = 4;}
+	else if (sigma > 1.3 && sigma <= 1.4) {mark = 5;}
+	else if (sigma > 1.4 && sigma <= 1.5) {mark = 6;}
+	else{mark = 7;}
 
-	double isigma = 1 / sigma; // 1 / sigma
-	double sis = sigma_minT[mark] * isigma; // sigma_min / sigma
+	double isigma = 1 / sigma;
+	double sis = sigma_minT[mark] * isigma;
 
 	while (1)
 	{
@@ -366,7 +330,6 @@ int sampler_4(void *ctx, double sigma, double center){
 		if (AcceptSample(rng, sis, x))
 		{
 			return z;
-			break;
 		}
 	}
 }
