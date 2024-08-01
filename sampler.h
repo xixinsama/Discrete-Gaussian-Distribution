@@ -171,6 +171,39 @@ prng_get_u8(prng* p)
 //	return p->buf.d[u];
 //}
 
+/*
+ * Get uniformly distributed random numbers in the interval [0,1) from a PRNG.
+ */
+union uint64_double_union {
+	uint64_t u;
+	double d;
+};
+
+static inline double
+prng_get_rand(prng* p)
+{
+	union uint64_double_union ud;
+
+	size_t w;
+	w = p->ptr;
+	if (w >= (sizeof p->buf.d) - 9) {
+		prng_refill(p);
+		w = 0;
+	}
+	p->ptr = w + 8;
+
+	ud.u = (uint64_t)p->buf.d[w + 0]
+		| ((uint64_t)p->buf.d[w + 1] << 8)
+		| ((uint64_t)p->buf.d[w + 2] << 16)
+		| ((uint64_t)p->buf.d[w + 3] << 24)
+		| ((uint64_t)p->buf.d[w + 4] << 32)
+		| ((uint64_t)p->buf.d[w + 5] << 40)
+		| ((uint64_t)p->buf.d[w + 6] >> 4 << 48)
+		| 0x3FF0000000000000ULL;
+
+	return ud.d - 1.0; // Subtract 1 to get a value in [0,1)
+}
+
 // compute exp(-x)
 static inline double expm_p63(double x)
 {
