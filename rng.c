@@ -32,6 +32,7 @@
 #include <string.h>
 #include "sampler.h"
 
+// 流密码算法 ChaCha20 的实现，随机数字节最大为512字节 = 8bit
 /* see inner.h */
 void
 prng_init(prng* p, sampler_shake256_context* src)

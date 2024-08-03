@@ -33,7 +33,7 @@
 
 #include "sampler.h"
 
-
+//shake256算法，任意长度的哈希函数
  /*
   * Round constants.
   */
