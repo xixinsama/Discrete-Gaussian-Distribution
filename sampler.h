@@ -32,6 +32,12 @@ void i_shake256_inject(sampler_shake256_context* sc, const uint8_t* in, size_t l
 void i_shake256_flip(sampler_shake256_context* sc);
 void i_shake256_extract(sampler_shake256_context* sc, uint8_t* out, size_t len);
 
+// 从 SHAKE256 上下文中获取一个 64 位的随机数。
+static inline uint64_t
+shake256_get_u64(sampler_shake256_context* p) {
+
+}
+
 /* ==================================================================== */
 /*
  * RNG (rng.c).

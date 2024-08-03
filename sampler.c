@@ -1,5 +1,6 @@
 #include "sampler.h"
 #include <immintrin.h>
+#include <math.h> //¿ìºÜ¶à
 
 /*
  *
@@ -178,7 +179,7 @@ int sampler_1(void* ctx) {
 	return z = s == 1 ? -z : z;
 }
 
-
+// AVX2½µÆµCPU
 // Fixed sigma = 1024 and center = 0
 static inline void BaseSampler_Vector(prng* p, __m256i* z_out)
 {
