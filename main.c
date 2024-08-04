@@ -112,13 +112,25 @@ int main() {
         printf_s("输入中心值：");
         scanf_s("%lf", &sc.center);
     }
-	if (choice == 10 || choice == 11 || choice == 12) {
+	else if (choice == 10 || choice == 11 || choice == 12) {
 	    printf_s("输入中心值：");
 		scanf_s("%lf", &sc.center);
 		printf_s("输入标准差：");
 		scanf_s("%lf", &sc.sigma);
 	}
-    /*——————————————————————————————————————————————————————————*/
+    else if (choice == 1 || choice == 3 || choice == 4 || choice == 5) {
+        sc.center = 0;
+		sc.sigma = 0.75;
+	}
+	else if (choice == 2) {
+		sc.center = 0;
+		sc.sigma = 4;
+	}
+	else if (choice == 6 || choice == 7 || choice == 8) {
+		sc.center = 0;
+		sc.sigma = 1024;
+	}
+	/*——————————————————————————————————————————————————————————*/
 
     clock_t start_t, end_t;
     int sample_count = 0; 	// 初始化采样计数器
@@ -163,6 +175,9 @@ int main() {
         return 1;
     }
 
+    // 将center, sigma写入文件
+    fprintf(file, "%lf\n", sc.center);
+    fprintf(file, " %lf\n", sc.sigma);
     if (sample_results != NULL && sample_count > 0) {
         for (int i = 0; i < sample_count; i++) {
             fprintf(file, "%d ", sample_results[i]);

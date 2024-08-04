@@ -9,14 +9,14 @@
  */
 
 
-/* ==================================================================== */
-/*
- * SHAKE256 implementation (shake.c).
- *
- * API is defined to be easily replaced with the fips202.h API defined
- * as part of PQClean.
- */
-// 用于存储 SHAKE256 算法的上下文，包括状态数组 st 和数据指针 dptr。
+ /* ==================================================================== */
+ /*
+  * SHAKE256 implementation (shake.c).
+  *
+  * API is defined to be easily replaced with the fips202.h API defined
+  * as part of PQClean.
+  */
+  // 用于存储 SHAKE256 算法的上下文，包括状态数组 st 和数据指针 dptr。
 typedef struct
 {
 	union
@@ -35,7 +35,27 @@ void i_shake256_extract(sampler_shake256_context* sc, uint8_t* out, size_t len);
 // 从 SHAKE256 上下文中获取一个 64 位的随机数。
 static inline uint64_t
 shake256_get_u64(sampler_shake256_context* p) {
+	uint8_t random_bytes[8];
 
+	i_shake256_extract(p, random_bytes, 8);
+	uint64_t result;
+	for (int i = 0; i < 8; i++) {
+		result |= ((uint64_t)random_bytes[i] << (8 * i));
+	}
+	return result;
+}
+
+// 从 SHAKE256 上下文中获取一个 32 位的随机数。
+static inline uint32_t
+shake256_get_u32(sampler_shake256_context* p) {
+	uint8_t random_bytes[4];
+
+	i_shake256_extract(p, random_bytes, 4);
+	uint64_t result;
+	for (int i = 0; i < 4; i++) {
+		result |= ((uint64_t)random_bytes[i] << (8 * i));
+	}
+	return result;
 }
 
 /* ==================================================================== */
@@ -47,14 +67,14 @@ shake256_get_u64(sampler_shake256_context* p) {
  * A system-dependent seed generator is also provided.
  */
 
-/*
- * Structure for a PRNG. This includes a large buffer so that values
- * get generated in advance. The 'state' is used to keep the current
- * PRNG algorithm state (contents depend on the selected algorithm).
- * The unions with 'dummy_u64' are there to ensure proper alignment for
- * 64-bit direct access.
- */
-// 用于存储伪随机数生成器（PRNG）的状态和缓冲区。
+ /*
+  * Structure for a PRNG. This includes a large buffer so that values
+  * get generated in advance. The 'state' is used to keep the current
+  * PRNG algorithm state (contents depend on the selected algorithm).
+  * The unions with 'dummy_u64' are there to ensure proper alignment for
+  * 64-bit direct access.
+  */
+  // 用于存储伪随机数生成器（PRNG）的状态和缓冲区。
 typedef struct
 {
 	union
@@ -117,14 +137,14 @@ prng_get_u64(prng* p)
 	 * On systems that use little-endian encoding and allow
 	 * unaligned accesses, we can simply read the data where it is.
 	 */
-	return (uint64_t)p->buf.d[u + 0] | 
-	((uint64_t)p->buf.d[u + 1] << 8) | 
-	((uint64_t)p->buf.d[u + 2] << 16) | 
-	((uint64_t)p->buf.d[u + 3] << 24) | 
-	((uint64_t)p->buf.d[u + 4] << 32) | 
-	((uint64_t)p->buf.d[u + 5] << 40) | 
-	((uint64_t)p->buf.d[u + 6] << 48) | 
-	((uint64_t)p->buf.d[u + 7] << 56);
+	return (uint64_t)p->buf.d[u + 0] |
+		((uint64_t)p->buf.d[u + 1] << 8) |
+		((uint64_t)p->buf.d[u + 2] << 16) |
+		((uint64_t)p->buf.d[u + 3] << 24) |
+		((uint64_t)p->buf.d[u + 4] << 32) |
+		((uint64_t)p->buf.d[u + 5] << 40) |
+		((uint64_t)p->buf.d[u + 6] << 48) |
+		((uint64_t)p->buf.d[u + 7] << 56);
 }
 
 /*
@@ -136,46 +156,45 @@ prng_get_u32(prng* p)
 	size_t u;
 
 	u = p->ptr;
-	if (u >= (sizeof p->buf.d) - 9)
+	if (u >= (sizeof p->buf.d) - 5)
 	{
 		prng_refill(p);
 		u = 0;
 	}
 	p->ptr = u + 4;
 
-	return (uint32_t)p->buf.d[u + 0] | 
-	((uint32_t)p->buf.d[u + 1] << 8) | 
-	((uint32_t)p->buf.d[u + 2] << 16) | 
-	((uint32_t)p->buf.d[u + 3] << 24);
+	return (uint32_t)p->buf.d[u + 0] |
+		((uint32_t)p->buf.d[u + 1] << 8) |
+		((uint32_t)p->buf.d[u + 2] << 16) |
+		((uint32_t)p->buf.d[u + 3] << 24);
 }
 
 /*
  * Get an 8-bit random value from a PRNG.
  */
-static inline size_t
-prng_get_u8(prng* p)
-{
-	size_t v;
-
-	v = p->buf.d[p->ptr++];
-	if (p->ptr == sizeof p->buf.d)
-	{
-		prng_refill(p);
-	}
-	return v;
-}
-
-// 性能几乎没区别
-//static inline uint8_t 
-//prng_get_u8(prng* p) {
-//	size_t u = p->ptr;
-//	if (u >= (sizeof p->buf.d) - 9) {
+//static inline size_t
+//prng_get_u8(prng* p)
+//{
+//	size_t v;
+//
+//	v = p->buf.d[p->ptr++];
+//	if (p->ptr == sizeof p->buf.d)
+//	{
 //		prng_refill(p);
-//		u = p->ptr;
 //	}
-//	p->ptr = u + 1;
-//	return p->buf.d[u];
+//	return v;
 //}
+
+static inline uint8_t 
+prng_get_u8(prng* p) {
+	size_t u = p->ptr;
+	if (u >= (sizeof p->buf.d) - 2) {
+		prng_refill(p);
+		u = 0;
+	}
+	p->ptr = u + 1;
+	return p->buf.d[u];
+}
 
 /*
  * Get uniformly distributed random numbers in the interval [0,1) from a PRNG.
