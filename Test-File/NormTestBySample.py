@@ -1,20 +1,22 @@
 # 卡方正态性检验
 # 分析工具集合
 
+from math import ceil, exp, sqrt
 import numpy as np
-from math import ceil, sqrt, exp
-from scipy.stats import chisquare, moment, skew, kurtosis
+import pandas as pd
 # 数据分析用的
 from matplotlib import pyplot as plt
-import pandas as pd
+from scipy.stats import chisquare, kurtosis, moment, skew
 
 # 读取数据，至少要有五个数据，赛题检验样本数为十万以上
-with open(r'output.txt', 'r') as file:
+# 文本第一行数据为中心值，第二行数据为标准差
+# 从第三行开始为样本数据
+with open(r"C:\\Users\\Xixin_Sama\\source\\repos\\Discrete Gaussian Sampler\\output.txt", 'r') as file:
+     # 读取第一行并转换为浮点数
+    mu = float(file.readline().strip())
+    # 读取第二行并转换为浮点数
+    sigma = float(file.readline().strip())
     data_array = [int(i) for i in file.read().split()]
-
-# 正态分布参数
-mu = 0
-sigma = 4
 
 # 尾截率
 tau = 14
@@ -138,6 +140,13 @@ print(f"标准差sigma: {sigma} || {stdev}")
 print(f"偏度(期望为0): {skewness}")
 print(f"峰度(期望为0): {kurtosisV}")
 
+
+tiger = int(input("是否继续分析？(1/0)"))
+if tiger != 1:
+    exit()
+else:
+    pass
+
 exp_ = np.array(list(exp_histogram1.values()))
 obs_ = np.array(list(histogram.values()))
 freq_diff = np.array(expected_freq) - np.array(observed_freq) # 直接相减是正确的,因为一一对应。通过样本数放大
@@ -169,12 +178,12 @@ plt.subplot(1, 2, 1)
 plt.bar(Values, obs_, label='Observed', alpha=0.6)
 plt.plot(Values, exp_, label='Expected', color='red')
 plt.title('Frequency Distribution')
-plt.legend()
+plt.legend(loc='upper right') # 图例位置优化
 
 plt.subplot(1, 2, 2)
 plt.bar(Values, freq_diff_raw, label='Difference', alpha=0.6)
 plt.title('Frequency Difference')
-plt.legend()
+plt.legend(loc='upper right')
 
 plt.tight_layout()
 plt.show()
