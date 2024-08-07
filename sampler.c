@@ -179,7 +179,6 @@ int sampler_1(void* ctx) {
 	return z = s == 1 ? -z : z;
 }
 
-// AVX2降频CPU
 // Fixed sigma = 1024 and center = 0
 static inline void BaseSampler_Vector(prng* p, __m256i* z_out)
 {
@@ -454,18 +453,32 @@ int sampler_1_Reject(void* ctx)
 	}
 }
 
+// c = 0, sigma = 0.75, 30bits
+static const uint32_t DistForsampler_1_vector[] = {
+571130810u,
+1040728601u,
+1073357877u,
+1073741063u,
+1073741823u
+};
+
 // 向量化采样器1，sigma = 0.75, center = 0，一次输出8个结果
-void sampler_1_vector(void* ctx)  {
+// 结果为整数指针
+int sampler_1_vector(void* ctx, int* samples) {
 	sampler_context* sc = ctx;
 	const __m256i v_zero = _mm256_setzero_si256();
 	const __m256i v_one = _mm256_set1_epi32(1);
 
 	__m256i v_r = _mm256_set_epi64x(prng_get_u64(&sc->p), prng_get_u64(&sc->p), prng_get_u64(&sc->p), prng_get_u64(&sc->p));
-	__m256i v_r_shifted = _mm256_srli_epi32(v_r, 4);
+	// __m256i v_r = _mm256_set_epi64x(shake256_get_u64(&sc->p1), shake256_get_u64(&sc->p1), shake256_get_u64(&sc->p1), shake256_get_u64(&sc->p1));
+	
+	//__m256i v_r_shifted = _mm256_slli_epi32(v_r, 2); //左移两位
+	//v_r_shifted = _mm256_srli_epi32(v_r_shifted, 4); //右移四位
+	__m256i v_r_shifted = _mm256_srli_epi32(v_r, 2);
 	__m256i v_z = v_zero;
 
-	for (size_t k = 0; k < sizeof(DistForSampler_2_CDT) / sizeof(DistForSampler_2_CDT[0]); k++) {
-		__m256i v_dist = _mm256_set1_epi32(DistForSampler_2_CDT[k]);
+	for (size_t k = 0; k < sizeof(DistForsampler_1_vector) / sizeof(DistForsampler_1_vector[0]); k++) {
+		__m256i v_dist = _mm256_set1_epi32(DistForsampler_1_vector[k]);
 		__m256i mask = _mm256_cmpgt_epi32(v_r_shifted, v_dist);
 		v_z = _mm256_add_epi32(v_z, _mm256_and_si256(mask, v_one));
 		if (_mm256_testz_si256(mask, _mm256_set1_epi32(-1))) { break; }
@@ -474,7 +487,8 @@ void sampler_1_vector(void* ctx)  {
 	__m256i isHighestBitZero = _mm256_cmpeq_epi32(_mm256_and_si256(v_r, v_one), v_zero);
 	v_z = _mm256_blendv_epi8(v_z, _mm256_sub_epi32(v_zero, v_z), isHighestBitZero);
 
-	*z_out = v_z;
+	_mm256_storeu_si256((__m256i*)samples, v_z); // 将结果存储到samples数组中
+	return 0;
 }
 
 // z, sigma = 2.5582018962155022023807759978808462619781494140625
@@ -535,6 +549,10 @@ int sampler_2_ori(void* ctx) {
 // 改进Karney算法，中心固定
 int sampler_2_karney(void* ctx) {
 	sampler_context* sc = ctx;
+	int z = 0;
+
+
+	return z;
 }
 
 //对任意标准差(> 1)，任意中心的Karney算法

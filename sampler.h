@@ -51,12 +51,21 @@ shake256_get_u32(sampler_shake256_context* p) {
 	uint8_t random_bytes[4];
 
 	i_shake256_extract(p, random_bytes, 4);
-	uint64_t result;
+	uint32_t result;
 	for (int i = 0; i < 4; i++) {
-		result |= ((uint64_t)random_bytes[i] << (8 * i));
+		result |= ((uint32_t)random_bytes[i] << (8 * i));
 	}
 	return result;
 }
+
+// 从 SHAKE256 上下文中获取一个 8 位的随机数。
+static inline uint8_t
+shake256_get_u8(sampler_shake256_context* p) {
+	uint8_t random_bytes[1];
+	i_shake256_extract(p, random_bytes, 1);
+	return random_bytes[0];
+}
+
 
 /* ==================================================================== */
 /*
@@ -211,7 +220,7 @@ prng_get_rand(prng* p)
 
 	size_t w;
 	w = p->ptr;
-	if (w >= (sizeof p->buf.d) - 9) {
+	if (w >= (sizeof p->buf.d) - 8) {
 		prng_refill(p);
 		w = 0;
 	}
@@ -263,6 +272,7 @@ static inline double expm_p63(double x)
 
 typedef struct {
 	prng p;
+	sampler_shake256_context p1;
 	double center;
 	double sigma;
 } sampler_context;
@@ -275,12 +285,57 @@ int sampler_4(void* ctx);
 int sampler_1_KY(void* ctx);
 int sampler_1_LUT(void* ctx);
 int sampler_1_Reject(void* ctx);
-int sampler_1_vector(void* ctx);
+int sampler_1_vector(void* ctx, int* samplers);
 
 int sampler_2_ori(void* ctx);
 int sampler_2_karney(void* ctx);
 
 int sampler_4_karney(void* ctx);
 int sampler_5(void* ctx);
+
+// 测试函数
+int s1(void* ctx);
+int s1_v(void* ctx, int* samples);
+
+/*
+ * Get a 24-bit random value from a PRNG.
+ */
+static inline uint32_t
+prng_get_u24(prng* p)
+{
+	size_t u;
+
+	u = p->ptr;
+	if (u >= (sizeof p->buf.d) - 4)
+	{
+		prng_refill(p);
+		u = 0;
+	}
+	p->ptr = u + 3;
+
+	return (uint32_t)p->buf.d[u + 0] |
+		((uint32_t)p->buf.d[u + 1] << 8) |
+		((uint32_t)p->buf.d[u + 2] << 16);
+}
+
+/*
+ * Get a 16-bit random value from a PRNG.
+ */
+static inline uint16_t
+prng_get_u16(prng* p)
+{
+	size_t u;
+
+	u = p->ptr;
+	if (u >= (sizeof p->buf.d) - 3)
+	{
+		prng_refill(p);
+		u = 0;
+	}
+	p->ptr = u + 2;
+
+	return (uint16_t)p->buf.d[u + 0] |
+		((uint16_t)p->buf.d[u + 1] << 8);
+}
 
 #endif
