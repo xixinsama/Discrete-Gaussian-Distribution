@@ -50,7 +50,7 @@ int main() {
 2. Knuth_Yao法c = 0, sigma = 4 \n \
 3. 查表法c = 0, sigma = 0.75 \n \
 4. 拒绝采样法c = 0, sigma = 0.75 \n \
-5. 并行优化的CDT查表法（没有） \n \
+5. 并行优化的CDT查表法 \n \
 以上为情形1(6000k) \n \
 6. AVX2整数向量并行优化的高斯卷积法(1300k) \n \
 7. 高斯卷积法c = 0, sigma = 1024 \n \
@@ -106,13 +106,19 @@ int main() {
 	else if (choice == 0) {
 		func_ptr = s1;
 	}
+	else if (choice == -1) {
+		func_ptr = s2_v;
+	}
+	else if (choice == -2) {
+		func_ptr = s3_v;
+	}
 	else {
 		printf("无效的选择\n");
 		return 0;
 	}
 
 	// 获取输入参数
-	if (choice == 9) {
+	if (choice == 9 || choice == -2) {
 		printf_s("输入中心值：");
 		scanf_s("%lf", &sc.center);
 	}
@@ -130,7 +136,7 @@ int main() {
 		sc.center = 0;
 		sc.sigma = 4;
 	}
-	else if (choice == 6 || choice == 7 || choice == 8) {
+	else if (choice == 6 || choice == 7 || choice == 8 || choice == -1) {
 		sc.center = 0;
 		sc.sigma = 1024;
 	}
@@ -143,7 +149,7 @@ int main() {
 
 	clock_t start_t, end_t;
 	int sample_count = 0; 	// 初始化采样计数器
-	int max_samples = 100000; // 最大采样次数
+	int max_samples = 1000000; // 最大采样次数
 	int* sample_results = (int*)malloc(max_samples * sizeof(int)); // 用于存储采样结果
 
 	// 检查内存分配是否成功
@@ -152,8 +158,11 @@ int main() {
 		return 1;
 	}
 
-	int16_t samples[16];
+	int16_t samples[16] = { 0 };
+	int16_t samples1[2] = { 0 };
+	int samples2[16] = { 0 };
 	int sample_result;
+	int scount;
 	// 记录开始时间
 	start_t = clock();
 	// 采样循环
@@ -167,9 +176,22 @@ int main() {
 				sample_count++;
 			}
 		}
+		else if (choice == -1) {
+			func_ptr(&sc, samples1);
+			sample_results[sample_count] = samples1[0];
+			sample_count++;
+			sample_results[sample_count] = samples1[1];
+			sample_count++;
+		}
+		else if (choice == -2) {
+			scount = func_ptr(&sc, samples2);
+			for (int i = 0; i < scount; i++) {
+				sample_results[sample_count] = samples2[i];
+				sample_count++;
+			}
+		}
 		else {
 			sample_result = func_ptr(&sc);
-			// 将采样结果添加到列表中
 			sample_results[sample_count] = sample_result;
 			sample_count++;
 		}
@@ -189,9 +211,9 @@ int main() {
 	printf("预计一秒内采样数：%d\n", (int)(sample_count / cpu_time_used));
 
 	// 打开文件
-	FILE* file = fopen("output.txt", "w");
+	FILE* file = fopen("C:\\Users\\Xixin_Sama\\source\\repos\\Discrete Gaussian Sampler\\output.txt", "w");
 	if (file == NULL) {
-		printf("无法打开文件\n");
+		perror("无法打开文件\n");
 		return 1;
 	}
 
@@ -213,6 +235,6 @@ int main() {
 	// 释放动态分配的内存
 	free(sample_results);
 
-
 	return 0;
 }
+

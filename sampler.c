@@ -471,7 +471,7 @@ int sampler_1_vector(void* ctx, int* samples) {
 
 	__m256i v_r = _mm256_set_epi64x(prng_get_u64(&sc->p), prng_get_u64(&sc->p), prng_get_u64(&sc->p), prng_get_u64(&sc->p));
 	// __m256i v_r = _mm256_set_epi64x(shake256_get_u64(&sc->p1), shake256_get_u64(&sc->p1), shake256_get_u64(&sc->p1), shake256_get_u64(&sc->p1));
-	
+
 	//__m256i v_r_shifted = _mm256_slli_epi32(v_r, 2); //左移两位
 	//v_r_shifted = _mm256_srli_epi32(v_r_shifted, 4); //右移四位
 	__m256i v_r_shifted = _mm256_srli_epi32(v_r, 2);
@@ -559,9 +559,58 @@ int sampler_2_karney(void* ctx) {
 int sampler_4_karney(void* ctx)
 {
 	sampler_context* sc = ctx;
-	int z = 0;
 
-	return z;
+	int s, k, i0, j;
+	double p, p1, p2, x;
+
+	while (1) {
+		// 步骤1：随机选择符号位，s为-1或1
+		uint8_t r = prng_get_u8(&sc->p);
+		s = (int)r & 1;
+		s = s == 1 ? -s : s;
+
+		// 步骤2：选择满足条件的k
+		while (1) {
+			// 选择整数k >= 0
+			k = prng_get_u8(&sc->p) & 8;  // 这里假设最大值为100，可以根据需要调整
+
+			// 计算选择k的概率p1
+			p1 = 0.393469340287366577 * exp(-0.5 * k); // math
+
+			// 如果均匀分布的随机数小于p1，接受k
+			if (prng_get_rand(&sc->p) < p1) {
+				// 计算接受k的概率p2
+				p2 = exp(-0.5 * k * (k - 1)); // math
+
+				// 如果均匀分布的随机数小于p2，返回k
+				if (prng_get_rand(&sc->p) < p2) {
+					break;
+				}
+			}
+		}
+
+		// 步骤3：生成j，j是均匀分布的随机整数，范围是0到sigma的向上取整
+		j = (int)(r & ((int)sc->sigma + 1));
+		// 步骤4：计算i0，i0是k * sigma + s * mu的向上取整
+		i0 = (int)(k * sc->sigma + s * sc->center) + 1;
+
+		// 步骤5：计算x
+		x = (i0 - (k * sc->sigma + s * sc->center) + j) / sc->sigma;
+
+		// 步骤6：如果x大于等于1，返回步骤1重新开始
+		if (x >= 1) continue;
+
+		// 步骤9：如果k为0，x为0，且s为-1，返回步骤1重新开始
+		if (k == 0 && x == 0 && s == -1) continue;
+
+		// 步骤12：计算p
+		p = exp(-0.5 * x * (2 * k + x)); // math
+
+		// 步骤13：如果一个均匀分布的随机数小于p，返回结果
+		if (prng_get_rand(&sc->p) < p) {
+			return s * (i0 + j);
+		}
+	}
 }
 
 //对任意标准差，任意中心的实时计算拒绝采样法

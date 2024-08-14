@@ -297,6 +297,11 @@ int sampler_5(void* ctx);
 int s1(void* ctx);
 int s1_v(void* ctx, int* samples);
 
+int s2_v(void* ctx, int16_t* samples);
+
+int s3_v(void* ctx, int* samples);
+
+
 /*
  * Get a 24-bit random value from a PRNG.
  */
