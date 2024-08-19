@@ -366,3 +366,8 @@ FodyWeavers.xsd
 output.txt
 /output.txt
 *.txt
+
+# 忽略vs项目文件
+Discrete Gaussian Sampler.sln
+Discrete Gaussian Sampler.vcxproj
+Discrete Gaussian Sampler.vcxproj.filters

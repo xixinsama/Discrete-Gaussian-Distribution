@@ -54,12 +54,12 @@ int main() {
 以上为情形1(6000k) \n \
 6. AVX2整数向量并行优化的高斯卷积法(1300k) \n \
 7. 高斯卷积法c = 0, sigma = 1024 \n \
-8. 改进Karney算法，对称中心，固定标准差（没有）(2600k) \n \
+8. 改进Karney算法，对称中心，固定标准差(2600k) \n \
 以上为情形2 \n \
 9. 伯努利拒绝采样法c = [0,1), sigma = 1.5 \n \
 以上为情形3(2900k) \n \
 10. 伯努利拒绝采样法c = [0,1), sigma = (0.8,1.6)(2600k) \n \
-11. Karney算法，任意中心，任意标准差>1（没有） \n \
+11. Karney算法，任意中心，任意标准差>1 \n \
 12. 实时计算的拒绝采样法 \n \
 以上为情形4 \n \
 输入序号：\n  ");
@@ -112,6 +112,9 @@ int main() {
 	else if (choice == -2) {
 		func_ptr = s3_v;
 	}
+	else if (choice == -3) {
+		func_ptr = s4_v;
+	}
 	else {
 		printf("无效的选择\n");
 		return 0;
@@ -122,7 +125,7 @@ int main() {
 		printf_s("输入中心值：");
 		scanf_s("%lf", &sc.center);
 	}
-	else if (choice == 10 || choice == 11 || choice == 12) {
+	else if (choice == 10 || choice == 11 || choice == 12 || choice == -3) {
 		printf_s("输入中心值：");
 		scanf_s("%lf", &sc.center);
 		printf_s("输入标准差：");
@@ -149,8 +152,8 @@ int main() {
 
 	clock_t start_t, end_t;
 	int sample_count = 0; 	// 初始化采样计数器
-	int max_samples = 1000000; // 最大采样次数
-	int* sample_results = (int*)malloc(max_samples * sizeof(int)); // 用于存储采样结果
+	int max_samples = 100000; // 最大采样次数
+	int* sample_results = (int*)malloc((max_samples + 50) * sizeof(int)); // 用于存储采样结果
 
 	// 检查内存分配是否成功
 	if (sample_results == NULL) {
@@ -183,7 +186,7 @@ int main() {
 			sample_results[sample_count] = samples1[1];
 			sample_count++;
 		}
-		else if (choice == -2) {
+		else if (choice == -2 || choice == -3) {
 			scount = func_ptr(&sc, samples2);
 			for (int i = 0; i < scount; i++) {
 				sample_results[sample_count] = samples2[i];
